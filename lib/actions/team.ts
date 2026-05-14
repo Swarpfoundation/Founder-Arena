@@ -301,11 +301,17 @@ export async function changeOfficeSetupAction(startupId: string, setupType: stri
 
   const startup = await db.startup.findUnique({
     where: { id: startupId },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, status: true },
   });
 
   if (!startup || startup.userId !== user.id) {
     throw new Error("Unauthorized");
+  }
+
+  // Only allow office changes for actively operating startups.
+  // Dead, completed, acquired, and draft startups must not mutate game economics.
+  if (startup.status !== "funded" && startup.status !== "active") {
+    throw new Error("Cannot change office setup: startup is not in operating phase");
   }
 
   // Validate setupType is a known office type by asking the helper.

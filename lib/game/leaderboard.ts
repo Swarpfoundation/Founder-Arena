@@ -12,29 +12,25 @@ export async function createOrUpdateLeaderboardEntry(
   season: string = "beta-season-1",
   metadata?: Record<string, unknown>
 ) {
-  // Check for existing entry to avoid duplicates
-  const existing = await db.leaderboardEntry.findFirst({
-    where: { startupId, category, season },
-  });
+  const metaJson = metadata
+    ? (metadata as unknown as import("@prisma/client").Prisma.InputJsonValue)
+    : undefined;
 
-  if (existing) {
-    return db.leaderboardEntry.update({
-      where: { id: existing.id },
-      data: {
-        userId,
-        score,
-        valuation,
-        revenue,
-        survivalMonths,
-        outcome,
-        completedAt: new Date(),
-        metadata: metadata ? metadata as unknown as import("@prisma/client").Prisma.InputJsonValue : undefined,
-      },
-    });
-  }
-
-  return db.leaderboardEntry.create({
-    data: {
+  // Atomic upsert on the unique (startupId, category, season) key.
+  // Eliminates the findFirst-then-create race under concurrent finalization.
+  return db.leaderboardEntry.upsert({
+    where: { startupId_category_season: { startupId, category, season } },
+    update: {
+      userId,
+      score,
+      valuation,
+      revenue,
+      survivalMonths,
+      outcome,
+      completedAt: new Date(),
+      metadata: metaJson,
+    },
+    create: {
       startupId,
       userId,
       score,
@@ -45,7 +41,7 @@ export async function createOrUpdateLeaderboardEntry(
       category,
       season,
       completedAt: new Date(),
-      metadata: metadata ? metadata as unknown as import("@prisma/client").Prisma.InputJsonValue : undefined,
+      metadata: metaJson,
     },
   });
 }

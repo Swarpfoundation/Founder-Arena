@@ -271,6 +271,7 @@ model SimulationMonth {
   startup             Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
   marketSnapshot      MarketSnapshot? @relation(fields: [marketSnapshotId], references: [id])
 
+  @@unique([startupId, monthNumber])
   @@index([startupId])
   @@index([monthNumber])
   @@map("simulation_months")
@@ -438,6 +439,7 @@ model LeaderboardEntry {
 
   startup        Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
 
+  @@unique([startupId, category, season])
   @@index([userId])
   @@index([startupId])
   @@index([season, category])
@@ -489,6 +491,7 @@ model UsageLedger {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, actionType, periodStart, periodEnd])
   @@index([userId])
   @@index([actionType])
   @@index([periodStart])

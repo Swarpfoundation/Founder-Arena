@@ -27,31 +27,21 @@ export async function recordUsage(
 ) {
   const { start, end } = getPeriodBounds();
 
-  const existing = await db.usageLedger.findFirst({
+  // Atomic upsert on the unique (userId, actionType, periodStart, periodEnd) key.
+  // Eliminates the find-then-create race where two concurrent calls could both
+  // see no existing row and both attempt to create one.
+  await db.usageLedger.upsert({
     where: {
-      userId,
-      actionType,
-      periodStart: start,
-      periodEnd: end,
-    },
-  });
-
-  if (existing) {
-    await db.usageLedger.update({
-      where: { id: existing.id },
-      data: { count: { increment: count } },
-    });
-  } else {
-    await db.usageLedger.create({
-      data: {
+      userId_actionType_periodStart_periodEnd: {
         userId,
         actionType,
-        count,
         periodStart: start,
         periodEnd: end,
       },
-    });
-  }
+    },
+    update: { count: { increment: count } },
+    create: { userId, actionType, count, periodStart: start, periodEnd: end },
+  });
 }
 
 export async function getUsageForPeriod(

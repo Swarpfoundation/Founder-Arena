@@ -4,7 +4,9 @@ import { NextResponse } from "next/server";
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PATHS = [
+// Exact-match paths that require no authentication.
+// Add new public API routes here explicitly — never add a broad /api/ prefix.
+const PUBLIC_PATHS = new Set([
   "/",
   "/login",
   "/pricing",
@@ -12,16 +14,25 @@ const PUBLIC_PATHS = [
   "/leaderboard",
   "/graveyard",
   "/how-to-play",
-  "/api/auth",
-  "/api/health",
+  // Public API routes (each must be justified individually)
+  "/api/health",            // Deployment health check
+  "/api/webhooks/stripe",   // Stripe webhook — signature verified inside handler
+  "/api/market/snapshot",   // Read-only market data consumed by the public /market page
+  // Share page roots (sub-paths handled by PUBLIC_PREFIXES)
   "/s",
   "/f",
+]);
+
+// Prefix-match paths where ALL sub-routes must be public.
+// Keep this list narrow.
+const PUBLIC_PREFIXES = [
+  "/s/",        // Public startup share pages  /s/[slug]
+  "/f/",        // Public founder share pages  /f/[slug]
+  "/api/auth/", // Auth.js: sign-in, callback, signout, session, csrf
 ];
 
-const PUBLIC_PREFIXES = ["/s/", "/f/", "/api/"];
-
 function isPublicPath(pathname: string): boolean {
-  if (PUBLIC_PATHS.includes(pathname)) return true;
+  if (PUBLIC_PATHS.has(pathname)) return true;
   for (const prefix of PUBLIC_PREFIXES) {
     if (pathname.startsWith(prefix)) return true;
   }

@@ -201,10 +201,38 @@ function resolveDefer(offer: StrategicOffer): ResolveOfferResult {
   };
 }
 
+/**
+ * Map an action + result to the persisted GrowthOffer status string.
+ *
+ * `result.success` is always true for reject/defer/counter-fail (they are
+ * valid resolved states, not errors) — so we cannot use it alone to infer
+ * the persisted status. We derive it from the action and, for "counter",
+ * from whether the actor ultimately funded the deal.
+ *
+ * Exported for unit testing.
+ */
+export function resolvedStatus(
+  action: "accept" | "reject" | "counter" | "defer",
+  result: ResolveOfferResult
+): string {
+  switch (action) {
+    case "accept":
+      return "accepted";
+    case "reject":
+      return "rejected";
+    case "defer":
+      return "deferred";
+    case "counter":
+      // Counter is accepted when the actor funds the deal (newStatus === "funded")
+      return result.newStatus === "funded" ? "accepted" : "rejected";
+  }
+}
+
 export async function persistOfferResolution(
   startupId: string,
   offer: StrategicOffer,
-  result: ResolveOfferResult
+  result: ResolveOfferResult,
+  action: "accept" | "reject" | "counter" | "defer"
 ): Promise<void> {
   await db.growthOffer.create({
     data: {
@@ -213,7 +241,7 @@ export async function persistOfferResolution(
       actorName: offer.actorName,
       actorType: offer.actorType,
       offerType: offer.offerType,
-      status: result.success ? (result.newStatus === "acquired" ? "accepted" : "accepted") : "rejected",
+      status: resolvedStatus(action, result),
       headline: offer.headline,
       amount: offer.amount,
       equityPercent: offer.equityPercent ? new Prisma.Decimal(offer.equityPercent) : null,

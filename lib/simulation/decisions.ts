@@ -213,6 +213,9 @@ export function validateDecisionSelection(
   if (decisionIds.length > 3) {
     return { valid: false, error: "Select at most 3 actions" };
   }
+  if (new Set(decisionIds).size !== decisionIds.length) {
+    return { valid: false, error: "Duplicate actions are not allowed" };
+  }
 
   const available = getAvailableDecisions(cash, productProgress, sector, month);
   const availableIds = new Set(available.map((d) => d.id));

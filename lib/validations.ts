@@ -23,6 +23,9 @@ export const REGIONS = [
   "Remote / Global",
 ] as const;
 
+export type Sector = (typeof SECTORS)[number];
+export type Region = (typeof REGIONS)[number];
+
 export const createStartupSchema = z.object({
   name: z
     .string()
@@ -32,8 +35,8 @@ export const createStartupSchema = z.object({
     .string()
     .min(10, "Description must be at least 10 characters")
     .max(180, "Description must be 180 characters or less"),
-  sector: z.string().min(1, "Sector is required"),
-  region: z.string().min(1, "Region is required"),
+  sector: z.enum(SECTORS, { errorMap: () => ({ message: "Invalid sector" }) }),
+  region: z.enum(REGIONS, { errorMap: () => ({ message: "Invalid region" }) }),
   targetMarket: z
     .string()
     .min(1, "Target customer is required")

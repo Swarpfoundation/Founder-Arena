@@ -473,3 +473,41 @@ describe("Offer Resolution", () => {
     expect(result.fundingRound?.roundType).toBe("strategic_round");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Growth offer status persistence (regression guard for the bug where
+// reject/defer returned success:true and were incorrectly stored as "accepted")
+// ---------------------------------------------------------------------------
+import { resolvedStatus } from "@/lib/growth/offer-resolution";
+
+describe("resolvedStatus — offer persistence mapping", () => {
+  const baseResult = {
+    success: true,
+    narrative: "",
+    cashDelta: 0,
+    valuationDelta: 0,
+    equityDelta: 0,
+    newStatus: "completed",
+    newStage: "not_started",
+  };
+
+  it("accept action maps to accepted", () => {
+    expect(resolvedStatus("accept", { ...baseResult, newStatus: "funded" })).toBe("accepted");
+  });
+
+  it("reject action maps to rejected (even though success:true)", () => {
+    expect(resolvedStatus("reject", { ...baseResult })).toBe("rejected");
+  });
+
+  it("defer action maps to deferred (even though success:true)", () => {
+    expect(resolvedStatus("defer", { ...baseResult })).toBe("deferred");
+  });
+
+  it("successful counter (funded) maps to accepted", () => {
+    expect(resolvedStatus("counter", { ...baseResult, newStatus: "funded" })).toBe("accepted");
+  });
+
+  it("rejected counter (completed, no funding) maps to rejected", () => {
+    expect(resolvedStatus("counter", { ...baseResult, newStatus: "completed" })).toBe("rejected");
+  });
+});

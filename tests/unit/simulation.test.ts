@@ -233,6 +233,30 @@ describe("validateDecisionSelection", () => {
     expect(result.valid).toBe(false);
     expect(result.error).toContain("exceeds");
   });
+
+  it("rejects duplicate decision IDs", () => {
+    const result = validateDecisionSelection(
+      ["product_focus", "product_focus"],
+      500000,
+      30,
+      "SaaS",
+      1
+    );
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("Duplicate");
+  });
+
+  it("rejects three copies of the same decision", () => {
+    const result = validateDecisionSelection(
+      ["cut_costs", "cut_costs", "cut_costs"],
+      500000,
+      30,
+      "SaaS",
+      1
+    );
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("Duplicate");
+  });
 });
 
 describe("applyMarketImpact", () => {

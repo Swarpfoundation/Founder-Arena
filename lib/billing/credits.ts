@@ -42,20 +42,28 @@ export async function addTokens(userId: string, amount: number, source: "ad" | "
 }
 
 export async function spendToken(userId: string): Promise<{ success: boolean; remaining: number }> {
-  const wallet = await getWallet(userId);
-  if (!wallet || wallet.speedTokens <= 0) {
-    return { success: false, remaining: 0 };
-  }
-
-  const updated = await db.creditWallet.update({
-    where: { userId },
+  // Atomic conditional decrement: the WHERE clause guards against going below
+  // zero without a separate read-then-write. Two concurrent requests with
+  // speedTokens=1 will both hit the UPDATE, but only one will match the
+  // condition (speedTokens > 0) — the other returns count=0.
+  const result = await db.creditWallet.updateMany({
+    where: { userId, speedTokens: { gt: 0 } },
     data: {
       speedTokens: { decrement: 1 },
       tokensUsed: { increment: 1 },
     },
   });
 
-  return { success: true, remaining: updated.speedTokens };
+  if (result.count === 0) {
+    // Either wallet doesn't exist or balance was already zero.
+    return { success: false, remaining: 0 };
+  }
+
+  const wallet = await db.creditWallet.findUnique({
+    where: { userId },
+    select: { speedTokens: true },
+  });
+  return { success: true, remaining: wallet?.speedTokens ?? 0 };
 }
 
 export async function grantMonthlyTokens(userId: string, planId: PlanId) {

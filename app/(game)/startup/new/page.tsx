@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createStartupAction } from "@/lib/actions/startup";
-import { createStartupSchema, SECTORS, REGIONS } from "@/lib/validations";
+import { createStartupSchema, SECTORS, REGIONS, type Sector, type Region } from "@/lib/validations";
 import { getFundingAskGuidance, StartupTemplate } from "@/lib/onboarding/startup-templates";
 import { StartupTemplatePicker } from "@/components/onboarding/StartupTemplatePicker";
 import { ExplainerHint } from "@/components/onboarding/ExplainerCard";
@@ -26,8 +26,8 @@ export default function CreateStartupPage() {
     setFormValues({
       name: template.name,
       description: template.description,
-      sector: template.sector,
-      region: template.region,
+      sector: template.sector as Sector,
+      region: template.region as Region,
       targetMarket: template.targetCustomer,
       problem: template.problem,
       solution: template.solution,
@@ -154,7 +154,7 @@ export default function CreateStartupPage() {
                     className="flex h-9 w-full border border-white/10 bg-transparent px-3 py-1 text-sm text-white focus:outline-none focus:border-cyan-400/50"
                     defaultValue={formValues.sector ?? ""}
                     onChange={(e) => {
-                      setFormValues((prev) => ({ ...prev, sector: e.target.value }));
+                      setFormValues((prev) => ({ ...prev, sector: e.target.value as Sector }));
                     }}
                   >
                     <option value="">Select sector</option>

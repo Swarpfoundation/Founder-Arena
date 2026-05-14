@@ -274,9 +274,17 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
     throw new Error(validation.error);
   }
 
-  // Phase 16: Validate event choice if an event is active
+  // Phase 16: Validate event choice if an event is active.
+  // Load the full triggered-event history from all previous months (not just
+  // the latest month — startup was fetched with take:1) so that once-per-run
+  // and max-occurrence guards in selectMonthlyEvent work correctly.
   const activeEmployeeCount = startup.employees.filter((e) => e.status === "active").length;
-  const allTriggeredEvents = startup.simulationMonths.flatMap((m) => m.eventsTriggered ?? []);
+  const allTriggeredEventsRaw = await db.simulationMonth.findMany({
+    where: { startupId },
+    select: { eventsTriggered: true },
+    orderBy: { monthNumber: "asc" },
+  });
+  const allTriggeredEvents = allTriggeredEventsRaw.flatMap((m) => m.eventsTriggered ?? []);
   const eventCtx: EventStateContext = {
     startupId: startup.id,
     monthNumber: nextMonthNumber,
@@ -633,6 +641,10 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
     }
   }
 
+  // Record usage for every simulation run, including final and death months.
+  // Must happen before the early-return below so it is never skipped.
+  await recordUsage(user.id, "monthlySimulation", 1);
+
   // If final, run centralized finalization
   if (deathCheck.dead || nextMonthNumber >= 12) {
     const finalResult = await finalizeStartup(startupId);
@@ -654,8 +666,6 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
       };
     }
   }
-
-  await recordUsage(user.id, "monthlySimulation", 1);
 
   revalidatePath(`/startup/${startupId}/operate`);
   return { success: true };

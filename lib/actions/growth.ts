@@ -225,7 +225,7 @@ export async function resolveGrowthOfferAction(
     currentRevenue: startup.revenue,
   });
 
-  await persistOfferResolution(startupId, offer, result);
+  await persistOfferResolution(startupId, offer, result, action);
 
   // Evaluate growth achievements (best-effort).
   try {
