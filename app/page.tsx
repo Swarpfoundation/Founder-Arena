@@ -119,7 +119,7 @@ export default function HomePage() {
               <div className="absolute inset-0 border border-white/20" />
               <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
               <span className="relative flex items-center gap-3 text-white/60 font-bold tracking-[0.2em] group-hover:text-white transition-colors">
-                AUTHENTICATE
+                LOGIN
               </span>
             </motion.button>
           </Link>
