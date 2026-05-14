@@ -1,0 +1,563 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+enum Plan {
+  free
+  pro
+  max
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  plan          Plan      @default(free)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  startups      Startup[]
+  founderProfile FounderProfile?
+  subscriptions Subscription[]
+  creditWallet  CreditWallet?
+  usageLedger   UsageLedger[]
+  queuedActions QueuedAction[]
+
+  @@map("users")
+}
+
+model FounderProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  publicSlug        String?  @unique
+  xp                Int      @default(0)
+  level             Int      @default(1)
+  totalStartups     Int      @default(0)
+  completedStartups Int      @default(0)
+  deadStartups      Int      @default(0)
+  bestValuation     Int      @default(0)
+  bestScore         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievements FounderAchievement[]
+
+  @@map("founder_profiles")
+}
+
+model Startup {
+  id                String   @id @default(cuid())
+  userId            String
+  name              String
+  tagline           String
+  description       String
+  sector            String
+  region            String
+  stage             String   @default("idea")
+  targetMarket      String
+  monetizationModel String
+  status            String   @default("draft")
+  problem           String   @db.Text
+  solution          String   @db.Text
+  unfairAdvantage   String   @db.Text
+  fundingAsk        Int
+  cash              Int      @default(0)
+  monthlyBurn       Int      @default(0)
+  revenue           Int      @default(0)
+  valuation         Int      @default(0)
+  productProgress   Int      @default(0)
+  investorScore     Int?
+  marketScore       Int?
+  riskScore         Int?
+  aiAnalysis        Json?
+  workSetup         String   @default("remote")
+  officeMonthlyCost Int      @default(0)
+  teamMorale        Int      @default(70)
+  teamProductivity  Decimal  @default(1.0) @db.Decimal(3, 2)
+  publicSlug        String?  @unique
+  finalOutcome      String?
+  finalSummary      String?  @db.Text
+  finalScore        Int?
+  completedAt       DateTime?
+  deathReason       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pitchDeck         PitchDeck?
+  vcReviews         VcReview[]
+  fundingRounds     FundingRound[]
+  termSheets        TermSheet[]
+  simulationMonths  SimulationMonth[]
+  employees         Employee[]
+  leaderboardEntries LeaderboardEntry[]
+  growthOffers       GrowthOffer[]
+  missions           Mission[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("startups")
+}
+
+model PitchDeck {
+  id            String   @id @default(cuid())
+  startupId     String   @unique
+  problem       String   @db.Text
+  solution      String   @db.Text
+  marketSize    String   @db.Text
+  product       String   @db.Text
+  businessModel String   @db.Text
+  goToMarket    String   @db.Text
+  competition   String   @db.Text
+  team          String?  @db.Text
+  financialPlan String   @db.Text
+  ask           String   @db.Text
+  useOfFunds    String   @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  startup       Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  @@map("pitch_decks")
+}
+
+model VcReview {
+  id              String   @id @default(cuid())
+  startupId       String
+  decision        String
+  memo            String   @db.Text
+  scoreProblem    Int?
+  scoreSolution   Int?
+  scoreMarket     Int?
+  scoreTeam       Int?
+  scoreBusiness   Int?
+  overallScore    Int?
+  feedback        String?  @db.Text
+  proposedAmount  Int?
+  proposedEquity  Decimal? @db.Decimal(5, 2)
+  strengths       String?  @db.Text
+  weaknesses      String?  @db.Text
+  marketTiming    String?  @db.Text
+  milestones      String?  @db.Text
+  rawResponse     Json?
+  createdAt       DateTime @default(now())
+
+  startup         Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  fundingRound    FundingRound?
+  termSheet       TermSheet?
+
+  @@index([startupId])
+  @@map("vc_reviews")
+}
+
+model TermSheet {
+  id                    String    @id @default(cuid())
+  startupId             String
+  vcReviewId            String?   @unique
+  status                String    @default("proposed")
+  proposedAmount        Int
+  proposedEquity        Decimal   @db.Decimal(5, 2)
+  preMoneyValuation     Int
+  postMoneyValuation    Int
+  founderSalaryCap      Int?
+  boardSeat             Boolean   @default(false)
+  boardObserver         Boolean   @default(false)
+  liquidationPreference Decimal   @default(1.0) @db.Decimal(3, 1)
+  proRataRights         Boolean   @default(false)
+  milestoneRequirements String?   @db.Text
+  investorNotes         String?   @db.Text
+  founderCounter        Json?
+  negotiationHistory    Json?
+  expiresAt             DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  startup               Startup     @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  vcReview              VcReview?   @relation(fields: [vcReviewId], references: [id])
+  fundingRound          FundingRound?
+
+  @@index([startupId])
+  @@map("term_sheets")
+}
+
+model FundingRound {
+  id                String   @id @default(cuid())
+  startupId         String
+  vcReviewId        String?  @unique
+  termSheetId       String?  @unique
+  roundType         String   @default("pre_seed")
+  amountRaised      Int?
+  equitySold        Decimal? @db.Decimal(5, 2)
+  preMoneyValuation Int?
+  postMoneyValuation Int?
+  investorName      String?
+  status            String   @default("pending")
+  closedAt          DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  startup           Startup    @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  vcReview          VcReview?  @relation(fields: [vcReviewId], references: [id])
+  termSheet         TermSheet? @relation(fields: [termSheetId], references: [id])
+
+  @@map("funding_rounds")
+}
+
+model SimulationMonth {
+  id                  String   @id @default(cuid())
+  startupId           String
+  monthNumber         Int
+  cashStart           Int
+  cashEnd             Int
+  burnRate            Int
+  revenue             Int
+  runwayMonths        Int
+  productProgress     Int
+  productProgressBefore Int    @default(0)
+  userGrowth          Int
+  employeeCount       Int
+  marketingSpend      Int
+  productSpend        Int
+  hiringSpend         Int
+  valuation           Int      @default(0)
+  investorScoreBefore Int?
+  investorScoreAfter  Int?
+  marketScoreBefore   Int?
+  marketScoreAfter    Int?
+  riskScoreBefore     Int?
+  riskScoreAfter      Int?
+  status              String   @default("active")
+  marketCondition     String
+  eventsTriggered     String[]
+  eventTitle          String?
+  eventSummary        String?
+  decisions           Json?
+  aiSummary           String?  @db.Text
+  decisionsLocked     Boolean  @default(false)
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  marketSnapshotId    String?
+
+  startup             Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  marketSnapshot      MarketSnapshot? @relation(fields: [marketSnapshotId], references: [id])
+
+  @@index([startupId])
+  @@index([monthNumber])
+  @@map("simulation_months")
+}
+
+model Employee {
+  id          String    @id @default(cuid())
+  startupId   String
+  name        String
+  role        String
+  level       String
+  seniority   String    @default("mid")
+  salary      Int
+  skill       String    @default("general")
+  morale      Int       @default(70)
+  status      String    @default("active")
+  hiredMonth  Int
+  firedMonth  Int?
+  hiredAt     DateTime  @default(now())
+  firedAt     DateTime?
+  productivity Decimal  @default(1.0) @db.Decimal(3, 2)
+  effectJson  Json?
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  startup     Startup   @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  @@index([startupId])
+  @@index([status])
+  @@map("employees")
+}
+
+model MarketSnapshot {
+  id          String   @id @default(cuid())
+  month       DateTime @unique
+  condition   String
+  description String   @db.Text
+  scenarioKey String?
+  sectorTrends Json?
+  metadata    Json?
+  isActive    Boolean  @default(false)
+  activatedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  events      MarketEvent[]
+  simulations SimulationMonth[]
+  dataRun     MarketDataRun? @relation(fields: [dataRunId], references: [id])
+  dataRunId   String?  @unique
+
+  @@index([isActive])
+  @@index([month])
+  @@map("market_snapshots")
+}
+
+model MarketSignal {
+  id          String   @id @default(cuid())
+  source      String
+  sourceId    String   @unique
+  title       String
+  summary     String   @db.Text
+  url         String?
+  publishedAt DateTime @default(now())
+  signalType  String
+  direction   String
+  severity    Int      @default(50)
+  confidence  Int      @default(50)
+  sectors     Json?
+  regions     Json?
+  effects     Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  dataRun     MarketDataRun? @relation(fields: [dataRunId], references: [id], onDelete: SetNull)
+  dataRunId   String?
+
+  @@index([dataRunId])
+  @@index([signalType])
+  @@index([publishedAt])
+  @@map("market_signals")
+}
+
+model MarketDataRun {
+  id             String   @id @default(cuid())
+  mode           String   @default("static")
+  status         String   @default("pending")
+  startedAt      DateTime @default(now())
+  completedAt    DateTime?
+  signalsFetched Int      @default(0)
+  signalsStored  Int      @default(0)
+  snapshotId     String?  @unique
+  error          String?  @db.Text
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  snapshot MarketSnapshot?
+  signals  MarketSignal[]
+
+  @@index([status])
+  @@index([mode])
+  @@index([startedAt])
+  @@map("market_data_runs")
+}
+
+model MarketEvent {
+  id              String   @id @default(cuid())
+  marketSnapshotId String
+  name            String
+  description     String   @db.Text
+  sectorImpact    Json?
+  globalImpact    Decimal  @default(0.0) @db.Decimal(4, 3)
+  type            String
+  severity        Int      @default(50)
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  marketSnapshot  MarketSnapshot @relation(fields: [marketSnapshotId], references: [id], onDelete: Cascade)
+
+  @@index([marketSnapshotId])
+  @@map("market_events")
+}
+
+model GrowthOffer {
+  id               String   @id @default(cuid())
+  startupId        String
+  actorId          String
+  actorName        String
+  actorType        String
+  offerType        String
+  status           String   @default("proposed")
+  headline         String
+  amount           Int?
+  equityPercent    Decimal? @db.Decimal(5, 2)
+  acquisitionPrice Int?
+  valuation        Int?
+  terms            Json?
+  benefits         Json?
+  risks            Json?
+  counterTerms     Json?
+  expiresAt        DateTime?
+  resolvedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  startup          Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  @@index([startupId])
+  @@map("growth_offers")
+}
+
+model LeaderboardEntry {
+  id             String   @id @default(cuid())
+  startupId      String
+  userId         String?
+  score          Int
+  valuation      Int
+  revenue        Int
+  survivalMonths Int
+  outcome        String?
+  rank           Int?
+  category       String
+  season         String   @default("beta-season-1")
+  completedAt    DateTime?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  startup        Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([startupId])
+  @@index([season, category])
+  @@index([score])
+  @@map("leaderboard_entries")
+}
+
+model Subscription {
+  id                   String    @id @default(cuid())
+  userId               String
+  stripeCustomerId     String?
+  stripeSubscriptionId String?   @unique
+  stripePriceId        String?
+  status               String    @default("incomplete")
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([stripeSubscriptionId])
+  @@map("subscriptions")
+}
+
+model CreditWallet {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  speedTokens    Int      @default(0)
+  adTokensEarned Int      @default(0)
+  tokensUsed     Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("credit_wallets")
+}
+
+model UsageLedger {
+  id          String   @id @default(cuid())
+  userId      String
+  actionType  String
+  count       Int      @default(1)
+  periodStart DateTime
+  periodEnd   DateTime
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([actionType])
+  @@index([periodStart])
+  @@map("usage_ledger")
+}
+
+model QueuedAction {
+  id          String    @id @default(cuid())
+  userId      String
+  startupId   String?
+  actionType  String
+  payload     Json?
+  status      String    @default("queued")
+  queuedAt    DateTime  @default(now())
+  processedAt DateTime?
+  result      Json?
+  error       String?   @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([queuedAt])
+  @@map("queued_actions")
+}
+
+model Mission {
+  id                   String   @id @default(cuid())
+  startupId            String
+  title                String
+  category             String
+  status               String   @default("pending")
+  sequence             Int
+  monthStart           Int?
+  monthEnd             Int?
+  requiredRoles        Json?
+  optionalRoles        Json?
+  requiredCapabilities Json?
+  estimatedCost        Int      @default(0)
+  monthlyCostDelta     Int      @default(0)
+  progress             Int      @default(0)
+  successScore         Int?
+  effects              Json?
+  aiSummary            String?  @db.Text
+  metadata             Json?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  startup Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  @@index([startupId])
+  @@index([status])
+  @@index([sequence])
+  @@map("missions")
+}
+
+model FounderAchievement {
+  id              String   @id @default(cuid())
+  founderProfileId String
+  key             String
+  title           String
+  description     String
+  icon            String?
+  unlockedAt      DateTime @default(now())
+  metadata        Json?
+
+  founderProfile  FounderProfile @relation(fields: [founderProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([founderProfileId, key])
+  @@index([founderProfileId])
+  @@map("founder_achievements")
+}
