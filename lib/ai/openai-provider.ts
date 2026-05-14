@@ -52,12 +52,14 @@ export class OpenAIProvider implements AIProvider {
   private baseUrl: string;
   private model: string;
   private fallback: MockProvider;
+  private providerName: string;
 
-  constructor(apiKey: string, baseUrl?: string, model?: string) {
+  constructor(apiKey: string, baseUrl?: string, model?: string, providerName = "openai") {
     this.apiKey = apiKey;
     this.baseUrl = (baseUrl ?? "https://api.openai.com/v1").replace(/\/$/, "");
     this.model = model ?? "gpt-4o";
     this.fallback = new MockProvider();
+    this.providerName = providerName;
   }
 
   async generateText(options: GenerateOptions): Promise<string> {
@@ -87,7 +89,7 @@ export class OpenAIProvider implements AIProvider {
         clearTimeout(timeout);
 
         if (!response.ok) {
-          throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+          throw new Error(`AI provider error [${this.providerName}]: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
@@ -129,7 +131,7 @@ export class OpenAIProvider implements AIProvider {
 
   async analyzeStartupIdea(input: Parameters<AIProvider["analyzeStartupIdea"]>[0]): Promise<StartupAnalysis> {
     const { system, prompt } = buildStartupAnalysisPrompt(input);
-    trackEvent("startup_created", { provider: "openai", sector: input.sector });
+    trackEvent("startup_created", { provider: this.providerName, sector: input.sector });
     return this.generateStructured({
       system,
       prompt,
@@ -141,7 +143,7 @@ export class OpenAIProvider implements AIProvider {
 
   async reviewPitch(input: Parameters<AIProvider["reviewPitch"]>[0]): Promise<VcReviewResult> {
     const { system, prompt } = buildVcReviewPrompt(input);
-    trackEvent("pitch_review_submitted", { provider: "openai", sector: input.sector });
+    trackEvent("pitch_review_submitted", { provider: this.providerName, sector: input.sector });
     return this.generateStructured({
       system,
       prompt,
@@ -174,7 +176,7 @@ Respond with valid JSON matching the committee consensus schema.`;
         const cleaned = extractJsonFromMarkdown(text);
         const parsed = JSON.parse(cleaned);
         const enriched = committeeConsensusSchema.parse({ ...deterministic, ...parsed });
-        trackEvent("pitch_review_submitted", { provider: "openai", committee: true });
+        trackEvent("pitch_review_submitted", { provider: this.providerName, committee: true });
         return enriched;
       } catch (err) {
         logger.error("[ai] committee enrichment failed, using deterministic", {
@@ -214,7 +216,7 @@ Respond with valid JSON matching the committee consensus schema.`;
           temperature: 0.5,
           maxTokens: 1500,
         });
-        trackEvent("market_snapshot_generated", { provider: "openai", analyst: true });
+        trackEvent("market_snapshot_generated", { provider: this.providerName, analyst: true });
         return result;
       } catch (err) {
         logger.error("[ai] market analyst failed, using deterministic", {
@@ -229,7 +231,7 @@ Respond with valid JSON matching the committee consensus schema.`;
     input: Parameters<AIProvider["generateMonthlyBoardUpdate"]>[0]
   ): Promise<MonthlyBoardUpdate> {
     const { system, prompt } = buildMonthlyBoardUpdatePrompt(input);
-    trackEvent("simulation_month_run", { provider: "openai", boardUpdate: true });
+    trackEvent("simulation_month_run", { provider: this.providerName, boardUpdate: true });
     return this.generateStructured({
       system,
       prompt,
