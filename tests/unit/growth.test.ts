@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   calculateSeriesAReadiness,
   calculateSeriesBReadiness,
@@ -379,7 +379,9 @@ describe("Offer Resolution", () => {
     expect(result.success).toBe(true);
     expect(result.cashDelta).toBe(0);
     expect(result.valuationDelta).toBeGreaterThan(0);
-    expect(result.newStatus).toBe("funded");
+    // Partnership accepts do not change startup status/stage — newStatus is absent.
+    expect(result.newStatus).toBeUndefined();
+    expect(result.newStage).toBeUndefined();
   });
 
   it("rejecting offer has small negative valuation signal", () => {
@@ -509,5 +511,141 @@ describe("resolvedStatus — offer persistence mapping", () => {
 
   it("rejected counter (completed, no funding) maps to rejected", () => {
     expect(resolvedStatus("counter", { ...baseResult, newStatus: "completed" })).toBe("rejected");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// persistOfferResolution — partnership valuation delta persistence
+// (regression guard: valuationDelta was computed but never written for
+//  partnership / distribution_deal / api_partnership / platform_integration)
+// ---------------------------------------------------------------------------
+import { persistOfferResolution } from "@/lib/growth/offer-resolution";
+import { vi } from "vitest";
+
+vi.mock("@/lib/db", () => {
+  const startupUpdate = vi.fn(async () => ({}));
+  const startupFindUnique = vi.fn(async () => ({ aiAnalysis: {} }));
+  const growthOfferCreate = vi.fn(async () => ({}));
+  const fundingRoundCreate = vi.fn(async () => ({}));
+  const $transaction = vi.fn(async (ops: unknown[]) => {
+    for (const op of ops) await op;
+  });
+
+  return {
+    db: {
+      growthOffer: { create: growthOfferCreate },
+      startup: { findUnique: startupFindUnique, update: startupUpdate },
+      fundingRound: { create: fundingRoundCreate },
+      $transaction,
+      _mocks: { startupUpdate, growthOfferCreate, fundingRoundCreate, $transaction },
+    },
+  };
+});
+
+import { db } from "@/lib/db";
+
+const mocks = (db as unknown as { _mocks: Record<string, ReturnType<typeof vi.fn>> })._mocks;
+
+function makePartnershipOffer(overrides: Partial<StrategicOffer> = {}): StrategicOffer {
+  return {
+    offerId: "offer-partner-1",
+    actorId: "cloud_giant",
+    actorName: "NimbusTech",
+    actorType: "cloud_giant",
+    offerType: "partnership",
+    headline: "Cloud Partnership",
+    amount: null,
+    equityPercent: null,
+    acquisitionPrice: null,
+    valuation: 5_000_000,
+    terms: [],
+    benefits: [],
+    risks: [],
+    conditions: [],
+    expiresInMonths: 3,
+    recommendedAction: "accept",
+    fitScore: 65,
+    ...overrides,
+  };
+}
+
+describe("persistOfferResolution — partnership valuation persistence", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("persists valuationDelta to startup when accepting a partnership offer", async () => {
+    const offer = makePartnershipOffer({ offerType: "partnership" });
+    const result = resolveOffer({
+      offer,
+      action: "accept",
+      startupId: "s1",
+      currentCash: 500_000,
+      currentValuation: 5_000_000,
+      currentRevenue: 50_000,
+    });
+    expect(result.valuationDelta).toBeGreaterThan(0); // 10% = 500,000
+    expect(result.fundingRound).toBeUndefined();
+    // Partnership accepts do not set newStatus — absence confirms no status transition.
+    expect(result.newStatus).toBeUndefined();
+
+    await persistOfferResolution("s1", offer, result, "accept");
+
+    // startup.update must have been called with the valuation increment
+    expect(mocks.startupUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "s1" },
+        data: expect.objectContaining({
+          valuation: { increment: result.valuationDelta },
+        }),
+      })
+    );
+  });
+
+  it("persists valuationDelta for distribution_deal offer type", async () => {
+    const offer = makePartnershipOffer({ offerType: "distribution_deal" });
+    const result = resolveOffer({
+      offer,
+      action: "accept",
+      startupId: "s1",
+      currentCash: 500_000,
+      currentValuation: 4_000_000,
+      currentRevenue: 30_000,
+    });
+    expect(result.valuationDelta).toBeGreaterThan(0);
+    await persistOfferResolution("s1", offer, result, "accept");
+    expect(mocks.startupUpdate).toHaveBeenCalled();
+  });
+
+  it("does NOT call startup.update for reject (zero deltas)", async () => {
+    const offer = makePartnershipOffer({ valuation: 0 }); // valuation 0 → delta 0
+    const result = resolveOffer({
+      offer,
+      action: "reject",
+      startupId: "s1",
+      currentCash: 500_000,
+      currentValuation: 5_000_000,
+      currentRevenue: 50_000,
+    });
+    // reject has small negative delta from offer.valuation * 0.02 = 0
+    await persistOfferResolution("s1", offer, result, "reject");
+    // startup.update should NOT be called for zero-delta reject
+    expect(mocks.startupUpdate).not.toHaveBeenCalled();
+  });
+
+  it("growthOffer.create is always called to record the resolved offer", async () => {
+    const offer = makePartnershipOffer();
+    const result = resolveOffer({
+      offer,
+      action: "accept",
+      startupId: "s1",
+      currentCash: 500_000,
+      currentValuation: 5_000_000,
+      currentRevenue: 50_000,
+    });
+    await persistOfferResolution("s1", offer, result, "accept");
+    expect(mocks.growthOfferCreate).toHaveBeenCalledOnce();
+    const createArg = mocks.growthOfferCreate.mock.calls[0][0] as { data: { status: string } };
+    expect(createArg.data.status).toBe("accepted");
   });
 });

@@ -270,6 +270,10 @@ export async function fireEmployeeAction(startupId: string, employeeId: string) 
     throw new Error("Unauthorized");
   }
 
+  if (startup.status !== "funded" && startup.status !== "active") {
+    throw new Error("Startup is not in operating phase");
+  }
+
   const employee = startup.employees.find((e) => e.id === employeeId);
   if (!employee) {
     throw new Error("Employee not found");

@@ -99,6 +99,81 @@ describe("admin authorization", () => {
   });
 });
 
+// ─── Admin Authorization — Production Logic (fail-closed) ─────────────
+//
+// isAdminEmail() caches IS_DEV at module load time and we run tests with
+// NODE_ENV=test, so we cannot call the real function to exercise the
+// production branch.  Instead we test the production logic inline — the
+// same pattern used by cron-auth.test.ts for CRON_SECRET guards.
+//
+// Critical invariant: missing ADMIN_EMAILS must DISABLE admin generation
+// (fail closed), NOT open it to any authenticated user.
+
+describe("admin authorization — production logic (fail-closed)", () => {
+  // Pure function that mirrors the production branch of isAdminEmail()
+  // (the branch taken when IS_DEV === false):
+  //   const adminList = ADMIN_EMAILS   // parsed from env var
+  //   return adminList.includes(email.toLowerCase())
+  function productionAdminCheck(
+    email: string | null | undefined,
+    adminList: string[]
+  ): boolean {
+    if (!email) return false;
+    return adminList.includes(email.toLowerCase());
+  }
+
+  // Simulate parsing ADMIN_EMAILS env var (mirrors lib/market-data/admin.ts)
+  function parseAdminEmails(envValue: string | undefined): string[] {
+    return (envValue ?? "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  it("fails closed when ADMIN_EMAILS is not set (missing env var)", () => {
+    const adminList = parseAdminEmails(undefined);
+    expect(adminList).toHaveLength(0);
+    expect(productionAdminCheck("anyone@example.com", adminList)).toBe(false);
+    expect(productionAdminCheck("attacker@evil.com", adminList)).toBe(false);
+  });
+
+  it("fails closed when ADMIN_EMAILS is empty string", () => {
+    const adminList = parseAdminEmails("");
+    expect(adminList).toHaveLength(0);
+    expect(productionAdminCheck("anyone@example.com", adminList)).toBe(false);
+  });
+
+  it("rejects email not in the ADMIN_EMAILS list", () => {
+    const adminList = parseAdminEmails("admin@founder-arena.com");
+    expect(productionAdminCheck("user@example.com", adminList)).toBe(false);
+    expect(productionAdminCheck("notadmin@founder-arena.com", adminList)).toBe(false);
+  });
+
+  it("accepts email that is in the ADMIN_EMAILS list", () => {
+    const adminList = parseAdminEmails("admin@founder-arena.com,ops@founder-arena.com");
+    expect(productionAdminCheck("admin@founder-arena.com", adminList)).toBe(true);
+    expect(productionAdminCheck("ops@founder-arena.com", adminList)).toBe(true);
+  });
+
+  it("email matching is case-insensitive", () => {
+    const adminList = parseAdminEmails("Admin@Founder-Arena.com");
+    expect(productionAdminCheck("admin@founder-arena.com", adminList)).toBe(true);
+    expect(productionAdminCheck("ADMIN@FOUNDER-ARENA.COM", adminList)).toBe(true);
+  });
+
+  it("null and undefined email are always rejected even with a populated list", () => {
+    const adminList = parseAdminEmails("admin@founder-arena.com");
+    expect(productionAdminCheck(null, adminList)).toBe(false);
+    expect(productionAdminCheck(undefined, adminList)).toBe(false);
+  });
+
+  it("whitespace-only entries in ADMIN_EMAILS are stripped and do not grant access", () => {
+    const adminList = parseAdminEmails("  ,   ,  ");
+    expect(adminList).toHaveLength(0);
+    expect(productionAdminCheck("anyone@example.com", adminList)).toBe(false);
+  });
+});
+
 // ─── Signal Deduplication ──────────────────────────────────────────────
 
 describe("signal deduplication", () => {

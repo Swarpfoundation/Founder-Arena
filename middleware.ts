@@ -29,6 +29,8 @@ const PUBLIC_PREFIXES = [
   "/s/",        // Public startup share pages  /s/[slug]
   "/f/",        // Public founder share pages  /f/[slug]
   "/api/auth/", // Auth.js: sign-in, callback, signout, session, csrf
+  "/api/cron/", // Cron endpoints: Vercel Cron runs unauthenticated; each handler
+                // enforces CRON_SECRET (≥16 chars) before doing any work.
 ];
 
 function isPublicPath(pathname: string): boolean {

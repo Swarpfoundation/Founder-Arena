@@ -17,8 +17,21 @@ export interface ResolveOfferResult {
   cashDelta: number;
   valuationDelta: number;
   equityDelta: number;
-  newStatus: string;
-  newStage: string;
+  /**
+   * Proposed startup status after this offer resolves.
+   * Only present when the offer actually changes startup status:
+   *   - "acquired"  → acquisition/acquihire accepted
+   *   - "funded"    → investment/cloud-credits accepted, or counter accepted
+   *   - "completed" → rejected or counter rejected
+   * Absent for partnership/distribution/api_partnership/platform_integration accepts —
+   * those only apply economic deltas; startup status/stage are NOT changed.
+   */
+  newStatus?: string;
+  /**
+   * Proposed startup stage after this offer resolves.
+   * Absent when newStatus is absent (same conditions apply).
+   */
+  newStage?: string;
   fundingRound?: {
     roundType: string;
     amountRaised: number;
@@ -110,14 +123,16 @@ function resolveAccept(offer: StrategicOffer, currentCash: number, currentValuat
     case "distribution_deal":
     case "api_partnership":
     case "platform_integration": {
+      // No equity, no formal funding round, no status/stage transition.
+      // Only the valuation delta is persisted (10% boost).
+      // newStatus and newStage are intentionally omitted — the startup keeps
+      // whatever status/stage it had before accepting this offer.
       return {
         success: true,
         narrative: `Partnered with ${offer.actorName}. Revenue and distribution benefits will apply to future months.`,
         cashDelta: 0,
-        valuationDelta: Math.round(currentValuation * 0.1), // Partnership boosts valuation 10%
+        valuationDelta: Math.round(currentValuation * 0.1),
         equityDelta: 0,
-        newStatus: "funded",
-        newStage: "strategic_negotiation",
       };
     }
     default:
@@ -223,7 +238,9 @@ export function resolvedStatus(
     case "defer":
       return "deferred";
     case "counter":
-      // Counter is accepted when the actor funds the deal (newStatus === "funded")
+      // Counter is accepted when the actor funds the deal (newStatus === "funded").
+      // newStatus is absent for economic-only partnership offers; undefined !== "funded"
+      // correctly resolves to "rejected" for those edge cases.
       return result.newStatus === "funded" ? "accepted" : "rejected";
   }
 }
@@ -305,6 +322,19 @@ export async function persistOfferResolution(
         },
       }),
     ]);
+  } else if (result.cashDelta !== 0 || result.valuationDelta !== 0) {
+    // Accepted partnership / distribution / platform_integration / api_partnership
+    // offers: no formal FundingRound row is created, but the economic delta
+    // (e.g. the 10% valuation boost for a partnership) must still be persisted.
+    // Status/stage are intentionally NOT changed here — the startup's game-flow
+    // state is set by the simulation layer, not by non-equity partnership accepts.
+    await db.startup.update({
+      where: { id: startupId },
+      data: {
+        ...(result.cashDelta !== 0 ? { cash: { increment: result.cashDelta } } : {}),
+        ...(result.valuationDelta !== 0 ? { valuation: { increment: result.valuationDelta } } : {}),
+      },
+    });
   }
 }
 
