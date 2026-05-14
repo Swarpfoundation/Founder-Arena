@@ -22,11 +22,25 @@ function resolveProvider() {
     );
   }
 
-  // OpenAI / OpenRouter (legacy fallback)
-  const apiKey = process.env.OPENAI_API_KEY ?? process.env.OPENROUTER_API_KEY;
-  const baseUrl = process.env.OPENAI_BASE_URL ?? process.env.OPENROUTER_BASE_URL;
-  const model = process.env.OPENAI_MODEL ?? process.env.OPENROUTER_MODEL;
-  if (apiKey) return new OpenAIProvider(apiKey, baseUrl, model, "openai");
+  // OpenRouter — proxy for 200+ models including DeepSeek/Qwen/Llama (free tier available)
+  if (process.env.OPENROUTER_API_KEY) {
+    return new OpenAIProvider(
+      process.env.OPENROUTER_API_KEY,
+      process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+      process.env.OPENROUTER_MODEL ?? "deepseek/deepseek-chat",
+      "openrouter"
+    );
+  }
+
+  // OpenAI (legacy)
+  if (process.env.OPENAI_API_KEY) {
+    return new OpenAIProvider(
+      process.env.OPENAI_API_KEY,
+      process.env.OPENAI_BASE_URL,
+      process.env.OPENAI_MODEL,
+      "openai"
+    );
+  }
 
   return new MockProvider();
 }
