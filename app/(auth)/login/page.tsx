@@ -1,6 +1,6 @@
+import Image from "next/image";
 import { signIn } from "@/lib/auth";
-
-import { Zap, Chrome, Github } from "lucide-react";
+import { Chrome, Github } from "lucide-react";
 
 function getErrorMessage(error: string | undefined): string | null {
   if (!error) return null;
@@ -56,16 +56,8 @@ export default async function LoginPage({
           <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 border-cyan-400/50" />
 
           <div className="text-center space-y-6">
-            <div
-              className="w-16 h-16 mx-auto relative"
-             
-             
-             
-            >
-              <div className="absolute inset-0 bg-cyan-400/20 rotate-45" />
-              <div className="absolute inset-1 bg-gradient-to-br from-cyan-400 to-violet-500 rotate-45 flex items-center justify-center">
-                <Zap className="w-7 h-7 text-black" />
-              </div>
+            <div className="w-20 h-20 mx-auto">
+              <Image src="/logo.png" alt="Founder Arena" width={80} height={80} priority />
             </div>
 
             <div>

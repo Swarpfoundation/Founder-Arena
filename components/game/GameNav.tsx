@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -11,7 +12,6 @@ import {
   TrendingUp,
   User,
   Skull,
-  Zap,
   ChevronRight,
   LogOut,
   Home,
@@ -46,7 +46,7 @@ export function GameNav() {
         <AnimatePresence mode="wait">
           {open ? (
             <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }}>
-              <Zap className="w-6 h-6" />
+              <Image src="/logo.png" alt="Founder Arena" width={24} height={24} />
             </motion.div>
           ) : (
             <motion.div key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }}>
@@ -60,10 +60,7 @@ export function GameNav() {
       <div className="fixed top-6 right-6 z-[100] flex items-center gap-3">
         <Link href="/" className="flex items-center gap-2 group">
           <div className="w-8 h-8 relative">
-            <div className="absolute inset-0 bg-cyan-400/20 rotate-45" />
-            <div className="absolute inset-1 bg-cyan-400 rotate-45 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-black" />
-            </div>
+            <Image src="/logo.png" alt="Founder Arena" width={32} height={32} />
           </div>
           <span className="text-sm font-bold tracking-[0.3em] text-cyan-400 hidden md:block group-hover:text-glow-cyan transition-all">
             FOUNDER ARENA

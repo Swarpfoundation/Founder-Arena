@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
-import { Zap, Crosshair, ChevronRight } from "lucide-react";
+import { Crosshair, ChevronRight } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -49,16 +50,12 @@ export default function HomePage() {
           transition={{ type: "spring", stiffness: 200, damping: 15 }}
         >
           <div className="relative inline-block">
-            <div className="w-24 h-24 mx-auto relative">
-              <motion.div
-                className="absolute inset-0 bg-cyan-400/20 rotate-45"
-                animate={{ rotate: [45, 50, 40, 45] }}
-                transition={{ duration: 4, repeat: Infinity }}
-              />
-              <div className="absolute inset-2 bg-gradient-to-br from-cyan-400 to-violet-500 rotate-45 flex items-center justify-center">
-                <Zap className="w-10 h-10 text-black" />
-              </div>
-            </div>
+            <motion.div
+              animate={{ filter: ["brightness(1)", "brightness(1.2)", "brightness(1)"] }}
+              transition={{ duration: 3, repeat: Infinity }}
+            >
+              <Image src="/logo.png" alt="Founder Arena" width={120} height={120} priority />
+            </motion.div>
           </div>
         </motion.div>
 
