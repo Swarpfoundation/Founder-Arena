@@ -152,6 +152,11 @@ model SocialState {
   // Gates 1 social action per simulation month
   lastActionMonth   Int      @default(0)
 
+  // Rival Founder / Nemesis System (v0.1)
+  // JSON arrays: RivalStartup[] and RivalMove[]
+  rivalProfiles     Json     @default("[]")
+  rivalMoveHistory  Json     @default("[]")
+
   startup   Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())

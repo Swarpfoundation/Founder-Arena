@@ -37,6 +37,10 @@ import {
 } from "@/lib/social/metrics-engine";
 import { generateMonthlyPassiveFeedItems } from "@/lib/social/feed-generator";
 import { ArenaFeedItem, DEFAULT_SOCIAL_METRICS, SocialMetrics } from "@/lib/social/types";
+import type { ActionTakenRecord } from "@/lib/social/types";
+import { generateRivals } from "@/lib/rivals/rival-generator";
+import { applyRivalMoves } from "@/lib/rivals/rival-engine";
+import type { RivalStartup, RivalMove } from "@/lib/rivals/types";
 
 export async function getSimulationState(startupId: string) {
   const user = await requireCurrentUser();
@@ -557,6 +561,77 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
   const updatedFeedItems = [...existingFeedItems, ...newPassiveFeedItems].slice(-100);
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── Rival layer: generate or advance rival startups ───────────────────────
+  const existingRivals: RivalStartup[] = ss
+    ? (ss.rivalProfiles as unknown as RivalStartup[])
+    : [];
+  const existingRivalMoves: RivalMove[] = ss
+    ? (ss.rivalMoveHistory as unknown as RivalMove[])
+    : [];
+
+  const rivalsToUse: RivalStartup[] =
+    existingRivals.length === 0
+      ? generateRivals({
+          startupId,
+          startupName: startup.name,
+          sector: startup.sector,
+          stage: startup.stage,
+          currentMonth: nextMonthNumber,
+          productProgress: startup.productProgress,
+          revenue: startup.revenue,
+          investorScore: startup.investorScore ?? 50,
+          riskScore: startup.riskScore ?? 50,
+        })
+      : existingRivals;
+
+  const actionsTakenList: ActionTakenRecord[] = ss
+    ? (ss.actionsTaken as unknown as ActionTakenRecord[])
+    : [];
+  const lastSocialActionId = actionsTakenList.length > 0
+    ? actionsTakenList[actionsTakenList.length - 1].actionId
+    : undefined;
+
+  const rivalResult = applyRivalMoves(rivalsToUse, nextMonthNumber, {
+    playerProductProgress: startup.productProgress,
+    playerRevenue: startup.revenue,
+    playerHype: currentSocialMetrics.hype,
+    playerTrust: currentSocialMetrics.trust,
+    playerBrandRisk: currentSocialMetrics.brandRisk,
+    playerInvestorScore: startup.investorScore ?? 50,
+    lastPlayerSocialActionId: lastSocialActionId,
+    marketCondition: result.marketCondition,
+    sector: startup.sector,
+  });
+
+  // Apply rival player effects to simulation result
+  if (rivalResult.playerEffects.revenueDelta) {
+    result.revenue = Math.max(0, result.revenue + rivalResult.playerEffects.revenueDelta);
+  }
+  if (rivalResult.playerEffects.investorScoreDelta) {
+    result.investorScoreAfter = Math.min(100, Math.max(0, result.investorScoreAfter + rivalResult.playerEffects.investorScoreDelta));
+  }
+  if (rivalResult.playerEffects.riskScoreDelta) {
+    result.riskScoreAfter = Math.min(100, Math.max(0, result.riskScoreAfter + rivalResult.playerEffects.riskScoreDelta));
+  }
+  if (rivalResult.playerEffects.userGrowthDelta) {
+    result.userGrowth = Math.max(0, result.userGrowth + rivalResult.playerEffects.userGrowthDelta);
+  }
+  if (rivalResult.playerEffects.valuationDelta) {
+    result.valuation = Math.max(0, result.valuation + rivalResult.playerEffects.valuationDelta);
+  }
+
+  // Apply rival social effects to social metrics (after decay)
+  const finalSocialMetrics = {
+    ...decayedSocialMetrics,
+    hype: Math.min(100, Math.max(0, decayedSocialMetrics.hype + (rivalResult.playerEffects.socialHypeDelta ?? 0))),
+    trust: Math.min(100, Math.max(0, decayedSocialMetrics.trust + (rivalResult.playerEffects.socialTrustDelta ?? 0))),
+    brandRisk: Math.min(100, Math.max(0, decayedSocialMetrics.brandRisk + (rivalResult.playerEffects.brandRiskDelta ?? 0))),
+  };
+
+  const updatedFeedWithRivals = [...updatedFeedItems, ...rivalResult.newFeedItems].slice(-100);
+  const updatedRivalMoves = [...existingRivalMoves, ...rivalResult.rivalMoves].slice(-200);
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Check death
   const deathCheck = checkDeathCondition(result, nextMonthNumber);
 
@@ -662,20 +737,24 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
     );
   }
 
-  // Add social state decay + passive feed items to the transaction
+  // Add social state decay + passive feed items + rival state to the transaction
   transactionOps.push(
     db.socialState.upsert({
       where: { startupId },
       create: {
         startupId,
-        ...decayedSocialMetrics,
-        feedItems: updatedFeedItems as object[],
+        ...finalSocialMetrics,
+        feedItems: updatedFeedWithRivals as object[],
         actionsTaken: ss ? (ss.actionsTaken as object[]) : [],
         lastActionMonth: ss?.lastActionMonth ?? 0,
+        rivalProfiles: rivalResult.updatedRivals as unknown as object[],
+        rivalMoveHistory: updatedRivalMoves as unknown as object[],
       },
       update: {
-        ...decayedSocialMetrics,
-        feedItems: updatedFeedItems as object[],
+        ...finalSocialMetrics,
+        feedItems: updatedFeedWithRivals as object[],
+        rivalProfiles: rivalResult.updatedRivals as unknown as object[],
+        rivalMoveHistory: updatedRivalMoves as unknown as object[],
       },
     })
   );
@@ -745,5 +824,6 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
 
   revalidatePath(`/startup/${startupId}/operate`);
   revalidatePath(`/startup/${startupId}/social`);
+  revalidatePath(`/startup/${startupId}/rivals`);
   return { success: true };
 }
