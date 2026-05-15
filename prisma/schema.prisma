@@ -123,10 +123,41 @@ model Startup {
   growthOffers       GrowthOffer[]
   missions           Mission[]
 
+  socialState        SocialState?
+
   @@index([userId])
   @@index([status])
   @@index([createdAt])
   @@map("startups")
+}
+
+model SocialState {
+  id                String   @id @default(cuid())
+  startupId         String   @unique
+
+  // Social metrics (0-100 unless noted)
+  followers         Int      @default(0)
+  hype              Int      @default(20)
+  trust             Int      @default(50)
+  sentiment         Int      @default(50)
+  brandRisk         Int      @default(0)
+  viralMomentum     Int      @default(0)
+  founderReputation Int      @default(30)
+  communityStrength Int      @default(10)
+
+  // JSON arrays: ArenaFeedItem[] and ActionTakenRecord[]
+  feedItems         Json     @default("[]")
+  actionsTaken      Json     @default("[]")
+
+  // Gates 1 social action per simulation month
+  lastActionMonth   Int      @default(0)
+
+  startup   Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("social_state")
 }
 
 model PitchDeck {

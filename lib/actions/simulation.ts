@@ -30,6 +30,13 @@ import { EventStateContext } from "@/lib/events/types";
 import { deriveStartupMarketExposure } from "@/lib/market/exposure";
 import { calculateTotalBurn } from "@/lib/economy/cost-engine";
 import { generateMissionCoach, MissionCoachResult } from "@/lib/ai/mission-coach";
+import {
+  applyMonthlyDecay,
+  applyPassiveBrandRiskRules,
+  deriveSocialSimModifiers,
+} from "@/lib/social/metrics-engine";
+import { generateMonthlyPassiveFeedItems } from "@/lib/social/feed-generator";
+import { ArenaFeedItem, DEFAULT_SOCIAL_METRICS, SocialMetrics } from "@/lib/social/types";
 
 export async function getSimulationState(startupId: string) {
   const user = await requireCurrentUser();
@@ -244,7 +251,11 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
 
   const startup = await db.startup.findUnique({
     where: { id: startupId },
-    include: { simulationMonths: { orderBy: { monthNumber: "desc" }, take: 1 }, employees: true },
+    include: {
+      simulationMonths: { orderBy: { monthNumber: "desc" }, take: 1 },
+      employees: true,
+      socialState: true,
+    },
   });
 
   if (!startup || startup.userId !== user.id) {
@@ -499,6 +510,53 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
     result.riskScoreAfter = missionStateEffect.riskScore;
   }
 
+  // ── Social layer: load existing metrics, apply modifiers, decay ──────────
+  const ss = startup.socialState;
+  const currentSocialMetrics: SocialMetrics = ss
+    ? {
+        followers: ss.followers,
+        hype: ss.hype,
+        trust: ss.trust,
+        sentiment: ss.sentiment,
+        brandRisk: ss.brandRisk,
+        viralMomentum: ss.viralMomentum,
+        founderReputation: ss.founderReputation,
+        communityStrength: ss.communityStrength,
+      }
+    : { ...DEFAULT_SOCIAL_METRICS };
+
+  // Apply conservative social modifiers to this month's simulation result
+  const socialMods = deriveSocialSimModifiers(currentSocialMetrics);
+  result.revenue = Math.max(0, result.revenue + socialMods.revenueDelta);
+  result.investorScoreAfter = Math.min(100, Math.max(0, result.investorScoreAfter + socialMods.investorDelta));
+  result.riskScoreAfter = Math.min(100, Math.max(0, result.riskScoreAfter + socialMods.riskDelta));
+  result.userGrowth = Math.max(0, result.userGrowth + socialMods.userGrowthDelta);
+  if (socialMods.valuationDelta) {
+    result.valuation = Math.max(0, result.valuation + socialMods.valuationDelta);
+  }
+
+  // Passive brand-risk escalation then monthly decay
+  const afterRiskRules = applyPassiveBrandRiskRules(currentSocialMetrics);
+  const decayedSocialMetrics = applyMonthlyDecay(afterRiskRules);
+
+  // Generate passive monthly feed items
+  const socialCtxForFeed = {
+    startupId,
+    startupName: startup.name,
+    sector: startup.sector,
+    month: nextMonthNumber,
+    productProgress: startup.productProgress,
+    revenue: startup.revenue,
+    investorScore: startup.investorScore ?? 50,
+    riskScore: startup.riskScore ?? 50,
+    status: startup.status,
+    founderName: "",
+  };
+  const newPassiveFeedItems = generateMonthlyPassiveFeedItems(decayedSocialMetrics, socialCtxForFeed);
+  const existingFeedItems: ArenaFeedItem[] = ss ? (ss.feedItems as unknown as ArenaFeedItem[]) : [];
+  const updatedFeedItems = [...existingFeedItems, ...newPassiveFeedItems].slice(-100);
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Check death
   const deathCheck = checkDeathCondition(result, nextMonthNumber);
 
@@ -604,6 +662,24 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
     );
   }
 
+  // Add social state decay + passive feed items to the transaction
+  transactionOps.push(
+    db.socialState.upsert({
+      where: { startupId },
+      create: {
+        startupId,
+        ...decayedSocialMetrics,
+        feedItems: updatedFeedItems as object[],
+        actionsTaken: ss ? (ss.actionsTaken as object[]) : [],
+        lastActionMonth: ss?.lastActionMonth ?? 0,
+      },
+      update: {
+        ...decayedSocialMetrics,
+        feedItems: updatedFeedItems as object[],
+      },
+    })
+  );
+
   await db.$transaction(transactionOps);
 
   // Phase 24B: Evaluate mission achievements after mission completion
@@ -668,5 +744,6 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
   }
 
   revalidatePath(`/startup/${startupId}/operate`);
+  revalidatePath(`/startup/${startupId}/social`);
   return { success: true };
 }
