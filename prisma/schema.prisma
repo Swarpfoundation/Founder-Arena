@@ -65,8 +65,30 @@ model FounderProfile {
   deadStartups      Int      @default(0)
   bestValuation     Int      @default(0)
   bestScore         Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+
+  // Career Record (Phase 10)
+  reputationScore        Int    @default(0)
+  founderTitle           String @default("Rookie Founder")
+  founderRank            String @default("rookie")
+  totalMonthsPlayed      Int    @default(0)
+  totalRevenueGenerated  Int    @default(0)
+  bestMonthlyRevenue     Int    @default(0)
+  bestOutcome            String?
+  bestStartupId          String?
+  lastCompletedStartupId String?
+  totalAcquisitions      Int    @default(0)
+  totalBreakouts         Int    @default(0)
+  totalSeriesAReady      Int    @default(0)
+  totalSurvived12        Int    @default(0)
+  sectorStats            Json   @default("{}")
+  playstyleStats         Json   @default("{}")
+  rivalStats             Json   @default("{}")
+  legacyBadges           Json   @default("[]")
+  completedStartupIds    Json   @default("[]")
+  recentRuns             Json   @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   achievements FounderAchievement[]

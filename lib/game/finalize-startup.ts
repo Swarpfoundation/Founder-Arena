@@ -17,6 +17,16 @@ export interface FinalizationResult {
   publicSlug: string;
   achievementsUnlocked: string[];
   xpGained: number;
+  // Career update summary (Phase 10)
+  careerUpdate?: {
+    newBadges: string[];
+    rankAdvanced: boolean;
+    titleChanged: boolean;
+    newTitle: string;
+    newRank: string;
+    reputationScore: number;
+    reputationDelta: number;
+  };
 }
 
 export async function finalizeStartup(startupId: string): Promise<FinalizationResult | null> {
@@ -240,6 +250,8 @@ export async function finalizeStartup(startupId: string): Promise<FinalizationRe
   }
 
   // Phase 9C: Strategy archetype summary on finalization
+  let finalDominantPlaystyle: string | null = null;
+  let finalSecondaryPlaystyle: string | null = null;
   try {
     const { computeStrategyState } = await import("@/lib/strategy/strategy-engine");
     const { generateArchetypeSummary } = await import("@/lib/strategy/strategy-summary");
@@ -263,6 +275,8 @@ export async function finalizeStartup(startupId: string): Promise<FinalizationRe
         revenue: startup.revenue,
         outcome: outcome.outcome,
       });
+      finalDominantPlaystyle = archSummary.dominantPlaystyle ?? null;
+      finalSecondaryPlaystyle = archSummary.secondaryPlaystyle ?? null;
       await db.startup.update({
         where: { id: startupId },
         data: {
@@ -275,6 +289,57 @@ export async function finalizeStartup(startupId: string): Promise<FinalizationRe
     }
   } catch {
     // strategy summary is best-effort
+  }
+
+  // Phase 10: Founder Career Record update
+  let careerUpdate: FinalizationResult["careerUpdate"] | undefined;
+  try {
+    const { updateFounderCareer } = await import("@/lib/game/career-record");
+    const ss = await db.socialState.findUnique({ where: { startupId } });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rivals = ss ? (ss.rivalProfiles as unknown as any[]) ?? [] : [];
+    const rivalsFaced = rivals.length;
+    const rivalsDefeated = rivals.filter((r: { isDefeated?: boolean }) => r.isDefeated === true).length;
+    const mostDangerousRivalName: string | null =
+      rivals.length > 0
+        ? rivals.reduce(
+            (top: { rivalryScore: number; name: string } | null, r: { rivalryScore: number; name: string }) =>
+              !top || r.rivalryScore > top.rivalryScore ? r : top,
+            null
+          )?.name ?? null
+        : null;
+
+    const careerResult = await updateFounderCareer(startup.userId, {
+      startupId,
+      startupName: startup.name,
+      sector: startup.sector,
+      outcome: outcome.outcome,
+      score: outcome.founderScore,
+      valuation: startup.valuation,
+      revenue: startup.revenue,
+      monthsSurvived,
+      isDead: startup.status === "dead",
+      isCompleted: startup.status === "completed",
+      dominantPlaystyle: finalDominantPlaystyle,
+      secondaryPlaystyle: finalSecondaryPlaystyle,
+      rivalsFaced,
+      rivalsDefeated,
+      rivalLosses: 0,
+      mostDangerousRivalName,
+      rivalSummary: rivals.length > 0 ? `Faced ${rivalsFaced} rival${rivalsFaced > 1 ? "s" : ""}, defeated ${rivalsDefeated}` : null,
+      completedAt: new Date(),
+    });
+    careerUpdate = {
+      newBadges: careerResult.newBadges.map((b) => b.title),
+      rankAdvanced: careerResult.rankAdvanced,
+      titleChanged: careerResult.titleChanged,
+      newTitle: careerResult.founderTitle,
+      newRank: careerResult.founderRank,
+      reputationScore: careerResult.reputationScore,
+      reputationDelta: careerResult.reputationScore - careerResult.previousReputationScore,
+    };
+  } catch {
+    // career update is best-effort
   }
 
   // Phase 14: Founder coaching on final outcome
@@ -306,6 +371,7 @@ export async function finalizeStartup(startupId: string): Promise<FinalizationRe
     publicSlug,
     achievementsUnlocked,
     xpGained,
+    careerUpdate,
   };
 }
 
