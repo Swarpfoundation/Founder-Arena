@@ -41,6 +41,10 @@ import type { ActionTakenRecord } from "@/lib/social/types";
 import { generateRivals } from "@/lib/rivals/rival-generator";
 import { applyRivalMoves } from "@/lib/rivals/rival-engine";
 import type { RivalStartup, RivalMove } from "@/lib/rivals/types";
+import type { StrategySignal } from "@/lib/strategy/types";
+import { signalsFromDecisions, appendSignals } from "@/lib/strategy/signal-detector";
+import { computeStrategyState } from "@/lib/strategy/strategy-engine";
+import { computeStrategyEffects } from "@/lib/strategy/strategy-effects";
 
 export async function getSimulationState(startupId: string) {
   const user = await requireCurrentUser();
@@ -632,6 +636,62 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
   const updatedRivalMoves = [...existingRivalMoves, ...rivalResult.rivalMoves].slice(-200);
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── Strategy layer: generate signals + apply synergy effects ─────────────
+  const existingStrategySignals: StrategySignal[] = ss
+    ? (ss.strategySignals as unknown as StrategySignal[])
+    : [];
+
+  // Emit signals for decisions chosen this month
+  const newDecisionSignals = signalsFromDecisions(decisionIds, nextMonthNumber);
+  const updatedStrategySignals = appendSignals(existingStrategySignals, newDecisionSignals);
+
+  // Compute strategy state from full signal history
+  const rivalryMaxScore = rivalResult.updatedRivals.length > 0
+    ? Math.max(...rivalResult.updatedRivals.map((r) => r.rivalryScore))
+    : 0;
+  const strategyCtx = {
+    productProgress: startup.productProgress,
+    revenue: result.revenue,
+    brandRisk: finalSocialMetrics.brandRisk,
+    socialTrust: finalSocialMetrics.trust,
+    socialHype: finalSocialMetrics.hype,
+    investorScore: result.investorScoreAfter,
+    monthlyBurn: result.burnRate,
+    currentMonth: nextMonthNumber,
+    rivalryMaxScore,
+  };
+  const strategyState = computeStrategyState(updatedStrategySignals, strategyCtx);
+  const strategyEffects = computeStrategyEffects(strategyState, strategyCtx);
+
+  // Apply strategy effects to simulation result
+  if (strategyEffects.revenueDelta) {
+    result.revenue = Math.max(0, result.revenue + strategyEffects.revenueDelta);
+  }
+  if (strategyEffects.investorScoreDelta) {
+    result.investorScoreAfter = Math.min(100, Math.max(0, result.investorScoreAfter + strategyEffects.investorScoreDelta));
+  }
+  if (strategyEffects.riskScoreDelta) {
+    result.riskScoreAfter = Math.min(100, Math.max(0, result.riskScoreAfter + strategyEffects.riskScoreDelta));
+  }
+  if (strategyEffects.userGrowthDelta) {
+    result.userGrowth = Math.max(0, result.userGrowth + strategyEffects.userGrowthDelta);
+  }
+  if (strategyEffects.valuationDelta) {
+    result.valuation = Math.max(0, result.valuation + strategyEffects.valuationDelta);
+  }
+  if (strategyEffects.productProgressDelta) {
+    result.productProgressAfter = Math.min(100, Math.max(0, result.productProgressAfter + strategyEffects.productProgressDelta));
+  }
+
+  // Apply strategy social effects
+  const finalSocialMetricsWithStrategy = {
+    ...finalSocialMetrics,
+    hype: Math.min(100, Math.max(0, finalSocialMetrics.hype + (strategyEffects.socialHypeDelta ?? 0))),
+    trust: Math.min(100, Math.max(0, finalSocialMetrics.trust + (strategyEffects.socialTrustDelta ?? 0))),
+    brandRisk: Math.min(100, Math.max(0, finalSocialMetrics.brandRisk + (strategyEffects.brandRiskDelta ?? 0))),
+  };
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Check death
   const deathCheck = checkDeathCondition(result, nextMonthNumber);
 
@@ -737,24 +797,26 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
     );
   }
 
-  // Add social state decay + passive feed items + rival state to the transaction
+  // Add social state decay + passive feed items + rival state + strategy signals to the transaction
   transactionOps.push(
     db.socialState.upsert({
       where: { startupId },
       create: {
         startupId,
-        ...finalSocialMetrics,
+        ...finalSocialMetricsWithStrategy,
         feedItems: updatedFeedWithRivals as object[],
         actionsTaken: ss ? (ss.actionsTaken as object[]) : [],
         lastActionMonth: ss?.lastActionMonth ?? 0,
         rivalProfiles: rivalResult.updatedRivals as unknown as object[],
         rivalMoveHistory: updatedRivalMoves as unknown as object[],
+        strategySignals: updatedStrategySignals as unknown as object[],
       },
       update: {
-        ...finalSocialMetrics,
+        ...finalSocialMetricsWithStrategy,
         feedItems: updatedFeedWithRivals as object[],
         rivalProfiles: rivalResult.updatedRivals as unknown as object[],
         rivalMoveHistory: updatedRivalMoves as unknown as object[],
+        strategySignals: updatedStrategySignals as unknown as object[],
       },
     })
   );
@@ -825,5 +887,6 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
   revalidatePath(`/startup/${startupId}/operate`);
   revalidatePath(`/startup/${startupId}/social`);
   revalidatePath(`/startup/${startupId}/rivals`);
+  revalidatePath(`/startup/${startupId}/strategy`);
   return { success: true };
 }

@@ -16,6 +16,8 @@ import { checkCounterActionAvailability } from "@/lib/rivals/rival-engine";
 import { generateCounterActionFeedItem } from "@/lib/rivals/rival-feed";
 import { generateRivalComparison } from "@/lib/rivals/rival-comparison";
 import type { ArenaFeedItem } from "@/lib/social/types";
+import type { StrategySignal } from "@/lib/strategy/types";
+import { signalsFromCounterAction, appendSignals } from "@/lib/strategy/signal-detector";
 
 // ─── Load rival state for a startup ──────────────────────────────────────────
 
@@ -217,6 +219,13 @@ export async function performCounterAction(
     : [];
   const updatedFeedItems = [...existingFeedItems, feedItem].slice(-100);
 
+  // Append strategy signal for this counter-action
+  const existingStrategySignals: StrategySignal[] = ss
+    ? (ss.strategySignals as unknown as StrategySignal[])
+    : [];
+  const counterSignals = signalsFromCounterAction(counterActionId, startup.simulationMonths.length + 1);
+  const updatedStrategySignals = appendSignals(existingStrategySignals, counterSignals);
+
   await db.$transaction([
     db.startup.update({
       where: { id: startupId },
@@ -235,6 +244,7 @@ export async function performCounterAction(
         sentiment: newSentiment,
         feedItems: updatedFeedItems as object[],
         rivalProfiles: finalRivals as unknown as object[],
+        strategySignals: updatedStrategySignals as unknown as object[],
       },
       update: {
         hype: newHype,
@@ -243,12 +253,14 @@ export async function performCounterAction(
         sentiment: newSentiment,
         feedItems: updatedFeedItems as object[],
         rivalProfiles: finalRivals as unknown as object[],
+        strategySignals: updatedStrategySignals as unknown as object[],
       },
     }),
   ]);
 
   revalidatePath(`/startup/${startupId}/rivals`);
   revalidatePath(`/startup/${startupId}/social`);
+  revalidatePath(`/startup/${startupId}/strategy`);
 
   const appliedEffects: RivalCounterEffects = { ...action.effects };
 

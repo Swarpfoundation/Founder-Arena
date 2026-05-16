@@ -157,6 +157,10 @@ model SocialState {
   rivalProfiles     Json     @default("[]")
   rivalMoveHistory  Json     @default("[]")
 
+  // Strategy Stack / Founder Playstyles (v0.1)
+  // JSON array: StrategySignal[]
+  strategySignals   Json     @default("[]")
+
   startup   Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())

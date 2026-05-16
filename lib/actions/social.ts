@@ -24,6 +24,8 @@ import {
   generateActionFeedItems,
 } from "@/lib/social/feed-generator";
 import { generatePostContent } from "@/lib/social/post-content";
+import type { StrategySignal } from "@/lib/strategy/types";
+import { signalsFromSocialAction, appendSignals } from "@/lib/strategy/signal-detector";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -235,6 +237,13 @@ export async function performSocialAction(
   const updatedActionsTaken = [...actionsTaken, record];
   const updatedFeedItems = [...feedItems, ...newFeedItems].slice(-100); // cap history
 
+  // Append strategy signal for this social action
+  const existingStrategySignals: StrategySignal[] = ss
+    ? (ss.strategySignals as unknown as StrategySignal[])
+    : [];
+  const newSocialSignals = signalsFromSocialAction(actionId, nextMonth);
+  const updatedStrategySignals = appendSignals(existingStrategySignals, newSocialSignals);
+
   // Persist atomically
   await db.$transaction(async (tx) => {
     // Deduct cash cost
@@ -261,6 +270,7 @@ export async function performSocialAction(
         feedItems: updatedFeedItems as object[],
         actionsTaken: updatedActionsTaken as object[],
         lastActionMonth: nextMonth,
+        strategySignals: updatedStrategySignals as unknown as object[],
       },
       update: {
         followers: updatedMetrics.followers,
@@ -274,11 +284,13 @@ export async function performSocialAction(
         feedItems: updatedFeedItems as object[],
         actionsTaken: updatedActionsTaken as object[],
         lastActionMonth: nextMonth,
+        strategySignals: updatedStrategySignals as unknown as object[],
       },
     });
   });
 
   revalidatePath(`/startup/${startupId}/social`);
+  revalidatePath(`/startup/${startupId}/strategy`);
   revalidatePath(`/startup/${startupId}`);
 
   return { post, newFeedItems, updatedMetrics, appliedEffects, didBackfire };

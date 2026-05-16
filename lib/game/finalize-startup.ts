@@ -239,6 +239,44 @@ export async function finalizeStartup(startupId: string): Promise<FinalizationRe
     // Mission achievements are best-effort
   }
 
+  // Phase 9C: Strategy archetype summary on finalization
+  try {
+    const { computeStrategyState } = await import("@/lib/strategy/strategy-engine");
+    const { generateArchetypeSummary } = await import("@/lib/strategy/strategy-summary");
+    const ss = await db.socialState.findUnique({ where: { startupId } });
+    if (ss) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const signals = (ss.strategySignals as unknown as any[]) ?? [];
+      const strategyState = computeStrategyState(signals, {
+        productProgress: startup.productProgress,
+        revenue: startup.revenue,
+        brandRisk: ss.brandRisk,
+        socialTrust: ss.trust,
+        socialHype: ss.hype,
+        investorScore: startup.investorScore ?? 50,
+        monthlyBurn: state.monthlyBurn,
+        currentMonth: monthsSurvived,
+        rivalryMaxScore: 0,
+      });
+      const archSummary = generateArchetypeSummary(signals, strategyState, {
+        productProgress: startup.productProgress,
+        revenue: startup.revenue,
+        outcome: outcome.outcome,
+      });
+      await db.startup.update({
+        where: { id: startupId },
+        data: {
+          aiAnalysis: {
+            ...(startup.aiAnalysis as Record<string, unknown> ?? {}),
+            strategyArchetype: archSummary,
+          } as unknown as Prisma.InputJsonValue,
+        },
+      });
+    }
+  } catch {
+    // strategy summary is best-effort
+  }
+
   // Phase 14: Founder coaching on final outcome
   try {
     const coaching = await ai.generateFounderCoaching({

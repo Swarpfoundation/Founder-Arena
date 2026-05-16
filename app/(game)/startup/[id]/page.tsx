@@ -538,7 +538,7 @@ export default async function StartupProfilePage({ params }: { params: Promise<{
       )}
 
       {/* Action Bar */}
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+      <div className="grid grid-cols-4 md:grid-cols-7 gap-3">
         <Link href={`/startup/${id}/operate`}>
           <div className="p-3 border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-all text-xs font-bold tracking-wider uppercase text-center cursor-pointer">
             OPERATE
@@ -562,6 +562,11 @@ export default async function StartupProfilePage({ params }: { params: Promise<{
         <Link href={`/startup/${id}/growth`}>
           <div className="p-3 border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all text-xs font-bold tracking-wider uppercase text-center cursor-pointer">
             GROWTH
+          </div>
+        </Link>
+        <Link href={`/startup/${id}/strategy`}>
+          <div className="p-3 border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all text-xs font-bold tracking-wider uppercase text-center cursor-pointer">
+            STRATEGY
           </div>
         </Link>
         <Link href={`/startup/${id}/terms`}>

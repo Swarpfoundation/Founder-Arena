@@ -26,6 +26,8 @@ import { getActiveMission } from "@/lib/missions/mission-progress";
 import { getOrCreateFounderProfile } from "@/lib/game/founder-progression";
 import { evaluateAchievementsForHire } from "@/lib/game/achievements";
 import { checkRateLimit } from "@/lib/rate-limit";
+import type { StrategySignal } from "@/lib/strategy/types";
+import { signalsFromHire, appendSignals } from "@/lib/strategy/signal-detector";
 
 export async function getTeamState(startupId: string) {
   const user = await requireCurrentUser();
@@ -250,6 +252,26 @@ export async function hireEmployeeAction(
     // achievements are best-effort
   }
 
+  // Append strategy signal for this hire (best-effort).
+  try {
+    const hireSignals = signalsFromHire(generated.role, expectedMonth);
+    if (hireSignals.length > 0) {
+      const currentSs = await db.socialState.findUnique({ where: { startupId } });
+      const existing: StrategySignal[] = currentSs
+        ? (currentSs.strategySignals as unknown as StrategySignal[])
+        : [];
+      const updated = appendSignals(existing, hireSignals);
+      await db.socialState.upsert({
+        where: { startupId },
+        create: { startupId, strategySignals: updated as unknown as object[] },
+        update: { strategySignals: updated as unknown as object[] },
+      });
+    }
+  } catch {
+    // strategy signals are best-effort
+  }
+
+  revalidatePath(`/startup/${startupId}/strategy`);
   revalidatePath(`/startup/${startupId}/team`);
   revalidatePath(`/startup/${startupId}/operate`);
   return { success: true };
