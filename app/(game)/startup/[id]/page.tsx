@@ -552,7 +552,7 @@ export default async function StartupProfilePage({ params }: { params: Promise<{
       )}
 
       {/* Action Bar */}
-      <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+      <div className="grid grid-cols-4 md:grid-cols-9 gap-3">
         <Link href={`/startup/${id}/operate`}>
           <div className="p-3 border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-all text-xs font-bold tracking-wider uppercase text-center cursor-pointer">
             OPERATE
@@ -591,6 +591,11 @@ export default async function StartupProfilePage({ params }: { params: Promise<{
         <Link href={`/startup/${id}/documentary`}>
           <div className="p-3 border border-cyan-500/20 bg-cyan-500/5 text-cyan-400/70 hover:bg-cyan-500/15 hover:text-cyan-400 transition-all text-xs font-bold tracking-wider uppercase text-center cursor-pointer">
             STORY
+          </div>
+        </Link>
+        <Link href={`/startup/${id}/boardroom`}>
+          <div className="p-3 border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all text-xs font-bold tracking-wider uppercase text-center cursor-pointer">
+            BOARD
           </div>
         </Link>
       </div>

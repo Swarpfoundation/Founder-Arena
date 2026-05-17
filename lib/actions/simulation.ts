@@ -45,6 +45,14 @@ import type { StrategySignal } from "@/lib/strategy/types";
 import { signalsFromDecisions, appendSignals } from "@/lib/strategy/signal-detector";
 import { computeStrategyState } from "@/lib/strategy/strategy-engine";
 import { computeStrategyEffects } from "@/lib/strategy/strategy-effects";
+import {
+  selectBoardroomTrigger,
+  generateBoardroomEvent,
+  applyTriggerToState,
+  parseBoardroomState,
+} from "@/lib/boardroom/boardroom-engine";
+import { buildBoardroomTriggerFeedItem } from "@/lib/boardroom/boardroom-feed";
+import type { BoardroomTriggerContext } from "@/lib/boardroom/types";
 
 export async function getSimulationState(startupId: string) {
   const user = await requireCurrentUser();
@@ -692,6 +700,52 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
   };
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── Boardroom layer: check for pressure event triggers ────────────────────
+  const rawBoardroomState = ss?.boardroomState ?? {};
+  const currentBoardroomState = parseBoardroomState(rawBoardroomState as unknown);
+
+  const boardroomCtx: BoardroomTriggerContext = {
+    startupId,
+    startupName: startup.name,
+    sector: startup.sector,
+    month: nextMonthNumber,
+    cash: result.cashEnd,
+    monthlyBurn: result.burnRate,
+    revenue: result.revenue,
+    productProgress: result.productProgressAfter,
+    investorScore: result.investorScoreAfter,
+    riskScore: result.riskScoreAfter,
+    brandRisk: finalSocialMetricsWithStrategy.brandRisk,
+    rivalryMaxScore: rivalResult.updatedRivals.length > 0
+      ? Math.max(...rivalResult.updatedRivals.map((r) => r.rivalryScore))
+      : 0,
+    runwayMonths: result.runwayMonths,
+    dominantPlaystyle: (strategyState.dominantPlaystyle as string | null) ?? null,
+    currentState: currentBoardroomState,
+  };
+
+  const triggeredPressureType = selectBoardroomTrigger(boardroomCtx);
+  let updatedBoardroomState = currentBoardroomState;
+  let boardroomFeedItems: typeof updatedFeedWithRivals = [];
+
+  if (triggeredPressureType) {
+    const newEvent = generateBoardroomEvent(boardroomCtx, triggeredPressureType);
+    updatedBoardroomState = applyTriggerToState(currentBoardroomState, newEvent);
+    const triggerFeedItem = buildBoardroomTriggerFeedItem(newEvent);
+    boardroomFeedItems = [{
+      id: triggerFeedItem.id,
+      month: triggerFeedItem.month,
+      category: triggerFeedItem.category as import("@/lib/social/types").ArenaFeedItem["category"],
+      title: triggerFeedItem.title,
+      body: triggerFeedItem.body,
+      severity: triggerFeedItem.severity as import("@/lib/social/types").ArenaFeedItem["severity"],
+      source: "investor" as import("@/lib/social/types").ArenaFeedItem["source"],
+    }];
+  }
+
+  const finalFeedItems = [...updatedFeedWithRivals, ...boardroomFeedItems].slice(-100);
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Check death
   const deathCheck = checkDeathCondition(result, nextMonthNumber);
 
@@ -797,26 +851,28 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
     );
   }
 
-  // Add social state decay + passive feed items + rival state + strategy signals to the transaction
+  // Add social state decay + passive feed items + rival state + strategy signals + boardroom to the transaction
   transactionOps.push(
     db.socialState.upsert({
       where: { startupId },
       create: {
         startupId,
         ...finalSocialMetricsWithStrategy,
-        feedItems: updatedFeedWithRivals as object[],
+        feedItems: finalFeedItems as object[],
         actionsTaken: ss ? (ss.actionsTaken as object[]) : [],
         lastActionMonth: ss?.lastActionMonth ?? 0,
         rivalProfiles: rivalResult.updatedRivals as unknown as object[],
         rivalMoveHistory: updatedRivalMoves as unknown as object[],
         strategySignals: updatedStrategySignals as unknown as object[],
+        boardroomState: updatedBoardroomState as unknown as object,
       },
       update: {
         ...finalSocialMetricsWithStrategy,
-        feedItems: updatedFeedWithRivals as object[],
+        feedItems: finalFeedItems as object[],
         rivalProfiles: rivalResult.updatedRivals as unknown as object[],
         rivalMoveHistory: updatedRivalMoves as unknown as object[],
         strategySignals: updatedStrategySignals as unknown as object[],
+        boardroomState: updatedBoardroomState as unknown as object,
       },
     })
   );

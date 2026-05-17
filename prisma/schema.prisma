@@ -183,6 +183,9 @@ model SocialState {
   // JSON array: StrategySignal[]
   strategySignals   Json     @default("[]")
 
+  // Boardroom Battles / Investor Pressure Events (v0.1)
+  boardroomState    Json     @default("{}")
+
   startup   Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
