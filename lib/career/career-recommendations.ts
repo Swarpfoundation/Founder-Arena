@@ -11,9 +11,9 @@ export function generateNextChallenge(profile: CareerProfileSnapshot): string {
     return "Deploy your first startup. Any sector counts — the journey starts now.";
   }
 
-  // Never survived 12 months
+  // Never survived a full run
   if (totalSurvived12 === 0 && completedStartups >= 1) {
-    return "You haven't survived a full 12-month run yet. Focus on burn rate and run the clock down.";
+    return "You haven't survived a full 12-week accelerator run yet. Focus on burn rate and run the clock down.";
   }
 
   // Never beaten rivals
@@ -23,7 +23,7 @@ export function generateNextChallenge(profile: CareerProfileSnapshot): string {
 
   // Never hit BREAKOUT
   if (totalBreakouts === 0 && completedStartups >= 3) {
-    return "You've never reached BREAKOUT. Focus on Product-Led Growth + high revenue before month 10.";
+    return "You've never reached BREAKOUT. Focus on Product-Led Growth + high revenue before Week 10.";
   }
 
   // Never exited via acquisition

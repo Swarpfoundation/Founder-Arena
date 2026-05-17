@@ -166,7 +166,7 @@ FOUNDER ARENA // RUN COMPLETE
 
 {StartupName} — {Sector} | {Region}
 Outcome: {OUTCOME_LABEL}
-Score: {score} | Valuation: {valuation} | {months} months
+Score: {score} | Valuation: {valuation} | {weeks} Founder Weeks
 Strategy: {PlaystyleDisplayName}   ← only if present
 
 "{documentary tagline}"

@@ -224,7 +224,7 @@ export function checkActionAvailability(
   if (lastActionMonth >= ctx.month) {
     return {
       available: false,
-      reason: `Already used a social action this month (Month ${ctx.month}).`,
+      reason: `Already used a social action this sprint (Week ${ctx.month}).`,
     };
   }
 

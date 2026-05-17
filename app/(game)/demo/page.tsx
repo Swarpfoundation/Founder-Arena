@@ -13,9 +13,18 @@ import {
   Crosshair,
   Shield,
   TrendingUp,
+  AlertTriangle,
+  Database,
+  ExternalLink,
+  Terminal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DEMO_CHECKLIST_STEPS } from "@/lib/demo/locked-states";
+import {
+  buildDemoShowcaseLinks,
+  buildPresenterChecklist,
+} from "@/lib/demo/showcase-data";
+import { getDemoShowcaseState } from "@/lib/demo/showcase-state";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +46,7 @@ const LOOP_STEPS = [
   { n: "02", label: "Pitch to AI VCs", color: "cyan" },
   { n: "03", label: "Raise Funding", color: "violet" },
   { n: "04", label: "Build Team", color: "violet" },
-  { n: "05", label: "Run Monthly Sims", color: "amber" },
+  { n: "05", label: "Run Sprint Sims", color: "amber" },
   { n: "06", label: "Social Pressure", color: "pink" },
   { n: "07", label: "Battle Rivals", color: "rose" },
   { n: "08", label: "Strategy Stack", color: "amber" },
@@ -157,7 +166,11 @@ const systemAccents: Record<string, { border: string; bg: string; text: string; 
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function DemoPage() {
+export default async function DemoPage() {
+  const showcase = await getDemoShowcaseState();
+  const showcaseLinks = buildDemoShowcaseLinks(showcase);
+  const presenterChecklist = buildPresenterChecklist();
+
   return (
     <div className="max-w-6xl mx-auto pt-24 pb-16 px-4 md:px-8 space-y-16">
 
@@ -176,7 +189,7 @@ export default function DemoPage() {
             </span>
           </h1>
           <p className="mt-4 text-lg text-white/50 max-w-2xl leading-relaxed">
-            Run a 12-month startup through funding, hiring, market crises, rival
+            Run a 12-week accelerator startup through funding, hiring, market crises, rival
             battles, boardroom pressure, and social dynamics — then watch it become a
             documentary and career legacy. Fully deterministic. No spreadsheets.
           </p>
@@ -190,8 +203,8 @@ export default function DemoPage() {
           </div>
           <p className="text-sm text-white/70 leading-relaxed">
             Founder Arena is a roguelike startup simulation game. You create a startup, pitch
-            it to AI VCs, raise funding, build a team, and run monthly simulations through
-            12 months of compounding crises. Social media pressure, rival founders, boardroom
+            it to AI VCs, raise funding, build a team, and run sprint simulations through
+            12 Founder Weeks of compounding crises. Social media pressure, rival founders, boardroom
             conflicts, and strategy archetypes emerge from your decisions — not predetermined
             scripts. Every run ends with a documentary and a permanent entry in your founder
             career record. Compete on seasonal leaderboards. Replay with different strategies.
@@ -222,6 +235,96 @@ export default function DemoPage() {
         </div>
       </section>
 
+      {/* ── Seeded Showcase Path ────────────────────────────────────────── */}
+      <section>
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <div>
+            <div className="text-[10px] tracking-[0.4em] text-white/30 uppercase">
+              Presenter Mode // Deterministic Showcase
+            </div>
+            <p className="mt-2 text-sm text-white/45 max-w-2xl">
+              Local demo data is optional. When seeded, this route links directly into active,
+              mid-run, finalized, career, and leaderboard views without mutating data from the browser.
+            </p>
+          </div>
+          <div
+            className={cn(
+              "shrink-0 flex items-center gap-2 border px-3 py-2 text-[10px] font-black tracking-widest uppercase",
+              showcase.seedDetected
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                : "border-amber-500/30 bg-amber-500/10 text-amber-400"
+            )}
+          >
+            {showcase.seedDetected ? <CheckCircle2 className="w-4 h-4" /> : <Database className="w-4 h-4" />}
+            {showcase.seedDetected ? "Demo Data Online" : "No Seed Detected"}
+          </div>
+        </div>
+
+        {showcase.databaseUnavailable && (
+          <div className="relative mb-4 border border-rose-500/30 bg-rose-500/10 p-4">
+            <CornerBorders />
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
+              <div>
+                <div className="text-sm font-black text-rose-300 uppercase tracking-wider">
+                  Demo database unavailable
+                </div>
+                <p className="text-xs text-white/45 mt-1">
+                  The route is still safe to show, but seeded showcase links are disabled until the local database is reachable.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!showcase.seedDetected && (
+          <div className="relative mb-4 border border-amber-500/25 bg-amber-500/5 p-4">
+            <CornerBorders />
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-black text-amber-300 uppercase tracking-wider">
+                  Local setup command
+                </div>
+                <p className="text-xs text-white/40 mt-1">
+                  Seed deterministic fictional demo runs from the terminal. No browser reset controls are exposed.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-cyan-300">
+                <Terminal className="w-4 h-4 text-white/30" />
+                npm run demo:seed
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {showcaseLinks.map((link) => (
+            <Link key={link.key} href={link.href}>
+              <div
+                className={cn(
+                  "relative h-full border p-4 transition-all cursor-pointer group",
+                  link.available
+                    ? "border-cyan-500/25 bg-cyan-500/5 hover:border-cyan-400/50"
+                    : "border-white/10 bg-white/[0.02] hover:border-amber-500/30"
+                )}
+              >
+                <CornerBorders />
+                <div className="flex items-center justify-between gap-2">
+                  <div className={cn("text-xs font-black uppercase tracking-wider", link.available ? "text-cyan-300" : "text-white/50")}>
+                    {link.label}
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-white/20 group-hover:text-cyan-300 transition-colors" />
+                </div>
+                <p className="mt-2 text-xs text-white/40 leading-relaxed">{link.description}</p>
+                {!link.available && link.setupHint && (
+                  <p className="mt-3 text-[11px] text-amber-300/70">{link.setupHint}</p>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* ── Core Loop ───────────────────────────────────────────────────── */}
       <section>
         <div className="text-[10px] tracking-[0.4em] text-white/30 uppercase mb-6">
@@ -247,7 +350,7 @@ export default function DemoPage() {
           ))}
         </div>
         <div className="mt-3 text-xs text-white/20 italic">
-          Each step feeds into the next. One bad month can spiral into boardroom drama. One viral moment can unlock a new rival.
+          Each step feeds into the next. One bad sprint can spiral into boardroom drama. One viral moment can unlock a new rival.
         </div>
       </section>
 
@@ -322,6 +425,39 @@ export default function DemoPage() {
         </div>
       </section>
 
+      {/* ── Presenter Checklist ─────────────────────────────────────────── */}
+      <section>
+        <div className="text-[10px] tracking-[0.4em] text-white/30 uppercase mb-6">
+          Presenter Checklist // 5-Minute Route Order
+        </div>
+        <div className="relative border border-violet-500/20 bg-violet-500/5 p-6">
+          <CornerBorders />
+          <div className="space-y-3">
+            {presenterChecklist.map((step, index) => (
+              <Link key={step.id} href={step.route}>
+                <div className="grid grid-cols-[44px_1fr] md:grid-cols-[44px_160px_1fr] gap-3 p-3 border border-white/5 hover:border-violet-400/30 hover:bg-violet-500/10 transition-all group">
+                  <div className="text-[10px] font-black text-violet-300/70 tabular-nums">
+                    {String(index + 1).padStart(2, "0")}
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-white/70 group-hover:text-white uppercase tracking-wider">
+                      {step.label}
+                    </div>
+                    <div className="text-[10px] text-violet-300/50 mt-1">{step.estimatedTime}</div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/45 leading-relaxed">{step.whatToSay}</p>
+                    {step.doNotClaim && (
+                      <p className="text-[11px] text-amber-300/70 mt-1">{step.doNotClaim}</p>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Traction / Status ───────────────────────────────────────────── */}
       <section>
         <div className="text-[10px] tracking-[0.4em] text-white/30 uppercase mb-6">
@@ -355,7 +491,7 @@ export default function DemoPage() {
             },
             {
               label: "Run Length",
-              value: "12 Months",
+              value: "12 Founder Weeks",
               note: "Each run is self-contained. Replay with different strategy anytime.",
               color: "cyan",
             },
@@ -401,6 +537,7 @@ export default function DemoPage() {
               "Not a real company formation tool. This is a game.",
               "Not subscription-gated. Current beta is full-access for demo purposes.",
               "Documentaries are generated by AI coaching + structured templates — not full LLM films.",
+              "Not a real infrastructure-cost model yet. Provider burn modeling is a future economy phase.",
             ].map((item) => (
               <div key={item} className="flex items-start gap-2 text-xs text-white/40">
                 <span className="mt-0.5 shrink-0 text-white/20">—</span>

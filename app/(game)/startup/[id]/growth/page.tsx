@@ -6,7 +6,12 @@ import { SectionHeader } from "@/components/game/SectionHeader";
 import { StatusBadge } from "@/components/game/StatusBadge";
 import { ReadinessScoreCard } from "@/components/growth/ReadinessScoreCard";
 import { GrowthOfferCardWrapper } from "@/components/growth/GrowthOfferCardWrapper";
+import { EventRevealPanel } from "@/components/game/EventRevealPanel";
+import { EventImpactBanner } from "@/components/game/EventImpactBanner";
+import { StartupRunHud } from "@/components/game/StartupRunHud";
+import { PageReveal } from "@/components/game/PageReveal";
 import { Button } from "@/components/ui/button";
+import { getRouteSprintAtmosphere } from "@/lib/game-time/route-atmosphere";
 import { ArrowLeft, Lock } from "lucide-react";
 import {
   MetricValuationIcon,
@@ -29,9 +34,11 @@ export default async function GrowthPage({ params }: { params: Promise<{ id: str
   }
 
   const { startup, eligibility, offers, roundOffers, growthHistory, isDead, isAcquired } = state;
+  const acquisitionOffer = offers.find((offer) => offer.offerType === "acquisition" || offer.offerType === "acquihire");
+  const currentStep = Math.max(1, Math.min(12, startup.simulationMonths.length || 12));
 
   return (
-    <div>
+    <PageReveal>
       <div className="max-w-7xl mx-auto pt-24 pb-12 px-4 md:px-8">
         <div className="mb-6">
           <Link
@@ -52,6 +59,17 @@ export default async function GrowthPage({ params }: { params: Promise<{ id: str
             </p>
           </div>
           <StatusBadge status={isDead ? "dead" : isAcquired ? "completed" : startup.status} />
+        </div>
+
+        <StartupRunHud
+          startupId={id}
+          status={isDead ? "dead" : isAcquired ? "completed" : startup.status}
+          currentStep={currentStep}
+          className="mb-8"
+        />
+
+        <div className="mb-8">
+          <EventImpactBanner event={getRouteSprintAtmosphere("growth", currentStep)} />
         </div>
 
         {/* Locked states */}
@@ -151,6 +169,35 @@ export default async function GrowthPage({ params }: { params: Promise<{ id: str
               </div>
             </GameCard>
 
+            {acquisitionOffer && (
+              <div className="mb-8">
+                <EventRevealPanel
+                  event={{
+                    type: "acquisition",
+                    severity: "high",
+                    eyebrow: "Acquisition Offer Incoming",
+                    title: acquisitionOffer.headline,
+                    subtitle: `${acquisitionOffer.actorName} is circling the company. This is a control, outcome, and legacy decision.`,
+                    accent: "amber",
+                    primaryCta: { label: "Review Offer", href: `/startup/${id}/growth` },
+                    secondaryCta: { label: "Keep Building", href: `/startup/${id}/operate` },
+                    affectedStats: [
+                      {
+                        label: "Offer",
+                        value: acquisitionOffer.acquisitionPrice
+                          ? `$${(acquisitionOffer.acquisitionPrice / 1_000_000).toFixed(1)}M`
+                          : "Strategic",
+                        accent: "amber",
+                      },
+                      { label: "Fit", value: `${acquisitionOffer.fitScore}/100`, accent: "violet" },
+                      { label: "Expires", value: `${acquisitionOffer.expiresInMonths} mo`, accent: "rose" },
+                    ],
+                    displayKey: `acquisition:${id}:${acquisitionOffer.offerId}`,
+                  }}
+                />
+              </div>
+            )}
+
             {/* Growth Round Offers */}
             {roundOffers.length > 0 && (
               <div className="mb-8">
@@ -225,8 +272,6 @@ export default async function GrowthPage({ params }: { params: Promise<{ id: str
           </>
         )}
       </div>
-    </div>
+    </PageReveal>
   );
 }
-
-

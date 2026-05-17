@@ -18,14 +18,14 @@ Your career record tracks legacy stats, reputation, sector mastery, playstyle hi
 | **Total Startups** | Lifetime count of startups launched |
 | **Completed Startups** | Runs that reached a final outcome (not abandoned) |
 | **Dead Startups** | Runs ending in HIGH_RISK_FAILURE or DEAD |
-| **Total Months Played** | Cumulative game months across all runs |
+| **Founder Weeks Played** | Cumulative Founder Weeks across all runs |
 | **Total Revenue Generated** | Cumulative revenue across all runs |
 | **Best Valuation** | Single-run highest valuation reached |
 | **Best Monthly Revenue** | Single-run best monthly revenue |
 | **Total Acquisitions** | Count of ACQUISITION or ACQUIHIRE outcomes |
 | **Total Breakouts** | Count of BREAKOUT outcomes |
 | **Total Series A Ready** | Count of SERIES_A_READY outcomes |
-| **Total Survived 12 Months** | Count of runs reaching month 12+ |
+| **Total Survived 12 Weeks** | Count of runs reaching Week 12+ |
 | **XP / Level** | Experience and level progression |
 
 ---
@@ -90,7 +90,7 @@ reputation = runBase + outcomeBonus + survivalBonus + scoreBonus + diversityBonu
 Each startup run contributes to sector mastery stats. Tracked per sector:
 
 - `runs`: total runs in this sector
-- `survived`: runs reaching month 12+
+- `survived`: runs reaching Week 12+
 - `bestScore`: highest score achieved
 - `acquisitions`: acquisitions in this sector
 - `breakouts`: breakouts in this sector
@@ -137,7 +137,7 @@ Badges are permanent achievements that unlock based on career milestones. Once e
 | `first_acquisition` | Rare | First acquisition exit |
 | `first_breakout` | Rare | First breakout outcome |
 | `exit_artist` | Legendary | 2+ acquisitions |
-| `cockroach_founder` | Rare | Survive 12 months in 3+ runs |
+| `cockroach_founder` | Rare | Survive 12 Founder Weeks in 3+ runs |
 | `product_led_master` | Common | 3+ dominant product-led runs |
 | `hype_machine_master` | Common | 3+ dominant hype-machine runs |
 | `rival_killer` | Rare | Defeat rivals in 3+ separate runs |
@@ -200,7 +200,7 @@ Each finalized startup is tracked by its ID in the `completedStartupIds` JSON ar
 The career page displays a personalized next challenge suggestion computed deterministically from career gaps:
 
 1. No runs yet → "Deploy your first startup"
-2. Never survived 12 months → "Survive to month 12"
+2. Never survived 12 Founder Weeks → "Survive to Week 12"
 3. Rival encountered but never defeated → "Defeat a rival"
 4. No breakout → "Reach breakout trajectory"
 5. No acquisition → "Engineer an acquisition exit"

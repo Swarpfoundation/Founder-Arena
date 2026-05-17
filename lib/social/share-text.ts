@@ -20,12 +20,12 @@ export function generateShareText(context: ShareContext, baseUrl?: string): stri
   switch (context.type) {
     case "startup_success": {
       const val = `$${(context.valuation / 1000000).toFixed(1)}M`;
-      text = `My startup ${context.name} survived ${context.monthsSurvived} months in Founder Arena and reached a ${val} valuation. Outcome: ${context.outcome}.`;
+      text = `My startup ${context.name} survived ${context.monthsSurvived} Founder Weeks in Founder Arena and reached a ${val} valuation. Outcome: ${context.outcome}.`;
       break;
     }
     case "startup_death": {
       const reason = context.deathReason ?? "market forces";
-      text = `My startup ${context.name} died in month ${context.monthsSurvived} because of ${reason.toLowerCase()}. Lesson learned: burn kills faster than competition.`;
+      text = `My startup ${context.name} died in Week ${context.monthsSurvived} because of ${reason.toLowerCase()}. Lesson learned: burn kills faster than competition.`;
       break;
     }
     case "acquisition": {

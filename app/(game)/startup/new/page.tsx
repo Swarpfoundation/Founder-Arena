@@ -4,9 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createStartupAction } from "@/lib/actions/startup";
 import { createStartupSchema, SECTORS, REGIONS, type Sector, type Region } from "@/lib/validations";
-import { getFundingAskGuidance, StartupTemplate } from "@/lib/onboarding/startup-templates";
+import { getFundingAskGuidance, STARTUP_TEMPLATES, StartupTemplate } from "@/lib/onboarding/startup-templates";
 import { StartupTemplatePicker } from "@/components/onboarding/StartupTemplatePicker";
 import { ExplainerHint } from "@/components/onboarding/ExplainerCard";
+import { EventRevealPanel } from "@/components/game/EventRevealPanel";
+import { PageReveal } from "@/components/game/PageReveal";
+import { cn } from "@/lib/utils";
+import { Crosshair, Radio, ShieldAlert, Sparkles, Target, Zap } from "lucide-react";
 
 import { z } from "zod";
 
@@ -81,14 +85,70 @@ export default function CreateStartupPage() {
   }
 
   const selectedSector = formValues.sector ?? "";
+  const selectedRegion = formValues.region ?? "";
+  const selectedTemplate = STARTUP_TEMPLATES.find((template) => template.id === selectedTemplateId);
+  const sectorRisk = selectedSector === "Fintech" || selectedSector === "Healthtech"
+    ? "High Regulation"
+    : selectedSector === "AI / ML" || selectedSector === "Consumer"
+      ? "Narrative Volatility"
+      : "Competitive Market";
+  const investorInterest = selectedTemplate ? "Template Signal" : selectedSector ? "Sector Signal" : "Awaiting Market";
 
   return (
-    <div className="max-w-2xl mx-auto pt-24 pb-12 px-4 md:px-8">
-      <p className="text-[10px] tracking-[0.4em] text-cyan-400/40 mb-2">DEPLOYMENT BAY</p>
-      <h1 className="text-3xl md:text-4xl font-black text-white text-glow-cyan tracking-tight mb-2">NEW UNIT</h1>
-      <p className="text-white/40 mb-8">
-        Define your idea and get an AI analysis. Start from a template or build from scratch.
-      </p>
+    <PageReveal className="max-w-5xl mx-auto pt-24 pb-12 px-4 md:px-8">
+      <div className="mb-8">
+        <p className="text-[10px] tracking-[0.4em] text-cyan-400/40 mb-2">Startup Deployment Bay</p>
+        <h1 className="text-3xl md:text-5xl font-black text-white text-glow-cyan tracking-tight mb-2">Deploy Into The Arena</h1>
+        <p className="max-w-2xl text-white/45">
+          Choose the market, shape the mission, and launch a 12-week accelerator run. After deployment: pitch investors, close funding, then survive Week 1.
+        </p>
+      </div>
+
+      <EventRevealPanel
+        className="mb-6"
+        event={{
+          type: "strategy",
+          severity: "medium",
+          eyebrow: "Founder Brief",
+          title: "Every Run Starts As A Venture Deployment",
+          subtitle: "Templates are launch presets, not guaranteed wins. The arena will judge execution through funding, sprint pressure, rivals, social response, boardroom events, and final legacy.",
+          accent: "cyan",
+          primaryCta: { label: "Choose Template", href: "#templates" },
+          secondaryCta: { label: "View Demo Path", href: "/demo" },
+          affectedStats: [
+            { label: "Run Length", value: "12 MO", accent: "amber" },
+            { label: "First Gate", value: "VC REVIEW", accent: "violet" },
+            { label: "Outcome", value: "STORY + RANK", accent: "emerald" },
+          ],
+          displayKey: "deployment-bay",
+        }}
+      />
+
+      <div className="mb-6 grid gap-3 md:grid-cols-4">
+        {[
+          { label: "Run Seed", value: selectedTemplate?.id ?? "custom", icon: Crosshair, tone: "cyan" },
+          { label: "Arena Conditions", value: selectedRegion || "select region", icon: Radio, tone: "violet" },
+          { label: "Market Risk", value: selectedSector ? sectorRisk : "select sector", icon: ShieldAlert, tone: "rose" },
+          { label: "Investor Interest", value: investorInterest, icon: Sparkles, tone: "amber" },
+        ].map((item) => {
+          const Icon = item.icon;
+          const toneClass = {
+            cyan: "border-cyan-500/25 bg-cyan-500/5 text-cyan-400",
+            violet: "border-violet-500/25 bg-violet-500/5 text-violet-400",
+            rose: "border-rose-500/25 bg-rose-500/5 text-rose-400",
+            amber: "border-amber-500/25 bg-amber-500/5 text-amber-400",
+          }[item.tone];
+          return (
+            <div key={item.label} className={cn("border p-3 hud-corner", toneClass)}>
+              <div className="mb-2 flex items-center gap-2">
+                <Icon className="h-4 w-4" />
+                <p className="text-[9px] font-black uppercase tracking-wider opacity-70">{item.label}</p>
+              </div>
+              <p className="truncate text-xs font-black uppercase tracking-wider text-white">{item.value}</p>
+            </div>
+          );
+        })}
+      </div>
 
       {globalError && (
         <div className="mb-6 border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-400">
@@ -96,13 +156,25 @@ export default function CreateStartupPage() {
         </div>
       )}
 
-      <form action={handleSubmit}>
+      <form action={handleSubmit} key={selectedTemplateId ?? "custom"}>
         <div className="space-y-6">
           {/* Template Picker */}
-          <StartupTemplatePicker
-            onSelect={applyTemplate}
-            selectedId={selectedTemplateId}
-          />
+          <div id="templates" className="border border-cyan-500/15 bg-cyan-500/[0.03] p-5 hud-corner">
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
+                <Target className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.32em] text-cyan-400/60">Choose Startup Archetype</p>
+                <h2 className="text-lg font-black uppercase tracking-wider text-white">Deployment Presets</h2>
+                <p className="text-xs text-white/45">Pick a tactical starting point or build a custom venture brief.</p>
+              </div>
+            </div>
+            <StartupTemplatePicker
+              onSelect={applyTemplate}
+              selectedId={selectedTemplateId}
+            />
+          </div>
 
           {selectedTemplateId && (
             <div className="flex items-center gap-2">
@@ -112,10 +184,11 @@ export default function CreateStartupPage() {
             </div>
           )}
 
-          <div className="border border-white/10 bg-white/[0.02] p-5">
+          <div className="border border-white/10 bg-white/[0.02] p-5 hud-corner">
             <div className="mb-4">
-              <div className="text-sm font-semibold tracking-wider text-white uppercase">Basics</div>
-              <div className="text-xs text-white/40 mt-0.5">The core identity of your startup.</div>
+              <div className="text-[10px] font-black tracking-[0.3em] text-cyan-400/60 uppercase">Choose Market</div>
+              <div className="text-sm font-black tracking-wider text-white uppercase">Name / Sector / Region</div>
+              <div className="text-xs text-white/40 mt-0.5">This sets the first arena context. Rivals, market pressure, and investor framing key off this brief.</div>
             </div>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -203,10 +276,11 @@ export default function CreateStartupPage() {
             </div>
           </div>
 
-          <div className="border border-white/10 bg-white/[0.02] p-5">
+          <div className="border border-white/10 bg-white/[0.02] p-5 hud-corner">
             <div className="mb-4">
-              <div className="text-sm font-semibold tracking-wider text-white uppercase">Idea</div>
-              <div className="text-xs text-white/40 mt-0.5">What problem are you solving and how?</div>
+              <div className="text-[10px] font-black tracking-[0.3em] text-violet-400/60 uppercase">Name / Mission</div>
+              <div className="text-sm font-black tracking-wider text-white uppercase">Problem / Solution / Moat</div>
+              <div className="text-xs text-white/40 mt-0.5">The investor chamber will judge clarity, market pain, differentiation, and execution risk.</div>
             </div>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -274,10 +348,11 @@ export default function CreateStartupPage() {
             </div>
           </div>
 
-          <div className="border border-white/10 bg-white/[0.02] p-5">
+          <div className="border border-white/10 bg-white/[0.02] p-5 hud-corner">
             <div className="mb-4">
-              <div className="text-sm font-semibold tracking-wider text-white uppercase">Funding</div>
-              <div className="text-xs text-white/40 mt-0.5">How much are you raising?</div>
+              <div className="text-[10px] font-black tracking-[0.3em] text-amber-400/60 uppercase">Funding Gate</div>
+              <div className="text-sm font-black tracking-wider text-white uppercase">Initial Ask</div>
+              <div className="text-xs text-white/40 mt-0.5">The ask influences the pitch ritual and term-sheet negotiation. Bigger rounds raise the stakes.</div>
             </div>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -303,18 +378,27 @@ export default function CreateStartupPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="border border-cyan-500/20 bg-cyan-500/5 p-5 hud-corner">
+            <div className="mb-4 flex items-start gap-3">
+              <Zap className="mt-0.5 h-5 w-5 text-cyan-400" />
+              <div>
+                <p className="text-sm font-black uppercase tracking-wider text-white">Deploy Into Arena</p>
+                <p className="text-xs text-white/45">Next stop: Pitch Deck Console. Every run becomes a founder story, career record, and arena ranking.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
             <button type="submit" disabled={pending} className="relative inline-flex items-center gap-2 px-6 py-3 border border-cyan-400/30 bg-cyan-400/10 hover:bg-cyan-400/20 transition-all disabled:opacity-50">
               <div className="absolute top-0 left-0 w-2 h-2 border-l border-t border-cyan-400" />
               <div className="absolute bottom-0 right-0 w-2 h-2 border-r border-b border-cyan-400" />
-              <span className="text-cyan-400 font-bold text-xs tracking-wider uppercase">{pending ? "Analyzing..." : "DEPLOY UNIT"}</span>
+              <span className="text-cyan-400 font-bold text-xs tracking-wider uppercase">{pending ? "Deploying..." : "DEPLOY INTO ARENA"}</span>
             </button>
             <button type="button" onClick={() => router.push("/dashboard")} disabled={pending} className="relative inline-flex items-center gap-2 px-6 py-3 border border-white/10 bg-white/5 hover:bg-white/10 transition-all disabled:opacity-50">
               <span className="text-white/60 font-bold text-xs tracking-wider uppercase">ABORT</span>
             </button>
+            </div>
           </div>
         </div>
       </form>
-    </div>
+    </PageReveal>
   );
 }

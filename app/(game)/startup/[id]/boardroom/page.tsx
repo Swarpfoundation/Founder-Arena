@@ -3,6 +3,11 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getBoardroomState } from "@/lib/actions/boardroom";
 import { BoardroomClient } from "./boardroom-client";
+import { StartupRunHud } from "@/components/game/StartupRunHud";
+import { EventImpactBanner } from "@/components/game/EventImpactBanner";
+import { PageReveal } from "@/components/game/PageReveal";
+import { getRunStepLabel } from "@/lib/game-time/time-scale";
+import { getRouteSprintAtmosphere } from "@/lib/game-time/route-atmosphere";
 
 export const dynamic = "force-dynamic";
 
@@ -54,9 +59,10 @@ export default async function BoardroomPage({
       </div>
     );
   }
+  const currentStep = Math.max(1, Math.min(12, data.currentMonth || 1));
 
   return (
-    <div className="max-w-5xl mx-auto pt-24 pb-12 px-4 md:px-8 space-y-5">
+    <PageReveal className="max-w-5xl mx-auto pt-24 pb-12 px-4 md:px-8 space-y-5">
       <div className="flex items-center gap-3">
         <Link href={`/startup/${id}`}>
           <div className="w-10 h-10 game-card flex items-center justify-center text-cyan-400">
@@ -73,7 +79,7 @@ export default async function BoardroomPage({
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[10px] font-bold px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 uppercase tracking-wider">
-            Month {data.currentMonth}
+            {getRunStepLabel(data.currentMonth)}
           </span>
           {data.boardroomState.currentOpenEvent && (
             <span className="text-[10px] font-bold px-3 py-1 bg-rose-500/20 border border-rose-500/40 text-rose-400 uppercase tracking-wider animate-pulse">
@@ -83,10 +89,19 @@ export default async function BoardroomPage({
         </div>
       </div>
 
+      <EventImpactBanner event={getRouteSprintAtmosphere("boardroom", currentStep)} />
+
       <BoardroomClient
         startupId={id}
         data={data}
       />
-    </div>
+
+      <StartupRunHud
+        startupId={id}
+        status={data.startupStatus}
+        hasBoardroomAlert={!!data.boardroomState.currentOpenEvent}
+        currentStep={currentStep}
+      />
+    </PageReveal>
   );
 }

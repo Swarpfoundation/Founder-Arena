@@ -44,12 +44,12 @@ export const EXPLAINERS: ExplainerDef[] = [
   {
     term: "Product Progress",
     short: "How complete your product is (0-100%).",
-    detail: "Build product through engineering hires and product-focus decisions. You need 40+ to launch beta and 50+ for enterprise push. Below 20 after month 9 is dangerous.",
+    detail: "Build product through engineering hires and product-focus decisions. You need 40+ to launch beta and 50+ for enterprise push. Below 20 after Week 9 is dangerous.",
   },
   {
     term: "Final Score",
     short: "Your leaderboard score at the end of the run.",
-    detail: "Based on valuation, revenue, months survived, capital efficiency, and market difficulty bonus. Outcome multipliers apply: BREAKOUT = 3x, SERIES_A_READY = 2.5x, etc.",
+    detail: "Based on valuation, revenue, Founder Weeks survived, capital efficiency, and market difficulty bonus. Outcome multipliers apply: BREAKOUT = 3x, SERIES_A_READY = 2.5x, etc.",
   },
   {
     term: "Equity Dilution",

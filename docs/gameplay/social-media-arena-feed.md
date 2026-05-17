@@ -10,7 +10,7 @@
 
 The Social layer turns Founder Arena from a passive startup simulator into a public narrative battlefield.
 
-Each month the player can take one social/media action — posting a founder thread, demoing the product on TikTok, launching across all channels, or managing a crisis. These actions update public-facing social metrics, generate an Arena Feed of posts and reactions, and apply real modifiers to the monthly simulation (revenue, risk, investor score, user growth, valuation).
+Each sprint the player can take one social/media action — posting a founder thread, demoing the product on TikTok, launching across all channels, or managing a crisis. These actions update public-facing social metrics, generate an Arena Feed of posts and reactions, and apply real modifiers to the sprint simulation (revenue, risk, investor score, user growth, valuation).
 
 The world watches. Investors react. Rivals respond. Press asks questions. And the startup's public narrative becomes a game resource — one that can be built, leveraged, or destroyed.
 
@@ -94,9 +94,9 @@ Applied each month in `runMonthlySimulationAction` after the core engine runs:
 
 ---
 
-## Monthly Decay
+## Sprint Decay
 
-Applied every month in the simulation transaction:
+Applied every sprint in the simulation transaction:
 
 | Metric | Decay |
 |---|---|

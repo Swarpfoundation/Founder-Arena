@@ -6,6 +6,11 @@ import type { BoardroomPageData } from "@/lib/actions/boardroom";
 import type { BoardroomEvent, BoardroomEffect } from "@/lib/boardroom/types";
 import { checkResponseRequirements } from "@/lib/boardroom/boardroom-engine";
 import { cn } from "@/lib/utils";
+import { RewardPopup } from "@/components/game/RewardPopup";
+import { EventRevealPanel } from "@/components/game/EventRevealPanel";
+import { EventImpactBanner } from "@/components/game/EventImpactBanner";
+import { buildBoardroomPresentation } from "@/lib/gamefeel/critical-events";
+import { getRunStepLabel, getShortRunStepLabel } from "@/lib/game-time/time-scale";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -153,7 +158,7 @@ function OpenEventPanel({
           </span>
           <h2 className="text-xl font-black text-white mt-2">{event.title}</h2>
         </div>
-        <span className="text-[10px] text-white/40 font-mono shrink-0">Month {event.month}</span>
+        <span className="text-[10px] text-white/40 font-mono shrink-0">{getRunStepLabel(event.month)}</span>
       </div>
 
       {/* Context */}
@@ -267,7 +272,7 @@ function HistoryPanel({ events }: { events: BoardroomEvent[] }) {
           return (
             <div key={e.id} className="p-3 border border-white/10 bg-white/5">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] text-white/40 font-mono">M{e.month}</span>
+                <span className="text-[10px] text-white/40 font-mono">{getShortRunStepLabel(e.month)}</span>
                 <span className={cn("text-[10px] font-bold tracking-wider uppercase px-1.5 py-0.5 border",
                   SEVERITY_COLORS[e.severity] ?? "border-white/20 text-white/60"
                 )}>
@@ -350,7 +355,7 @@ function NoEventsState({ data }: { data: BoardroomPageData }) {
         <h2 className="text-lg font-black text-white">
           {isFinalized
             ? "No open boardroom events — run is finalized."
-            : "Boardroom is quiet. For now."}
+            : "No investor checkpoint this sprint."}
         </h2>
       </div>
       {isFinalized ? (
@@ -362,7 +367,7 @@ function NoEventsState({ data }: { data: BoardroomPageData }) {
         <>
           <p className="text-white/50 text-sm leading-relaxed">
             Pressure events fire automatically when key metrics hit crisis thresholds.
-            Run more months to trigger them.
+            Run another sprint to generate the next investor checkpoint.
           </p>
           <p className="text-orange-400/70 text-xs italic">
             &ldquo;Boardroom pressure tests whether investors still trust you.&rdquo;
@@ -373,7 +378,7 @@ function NoEventsState({ data }: { data: BoardroomPageData }) {
               "Investor score ≤ 35",
               "Brand risk ≥ 70",
               "Risk score ≥ 85",
-              "No revenue by month 6",
+              "No revenue by Week 6",
               "Burn rate > 3× revenue",
             ].map((trigger) => (
               <span key={trigger} className="text-[10px] text-white/40 font-mono border border-white/5 px-2 py-1">
@@ -400,9 +405,44 @@ export function BoardroomClient({
   const [resolvedNarrative, setResolvedNarrative] = useState<string | null>(null);
   const openEvent = data.boardroomState.currentOpenEvent;
   const history = data.boardroomState.eventHistory;
+  const boardroomPresentation = buildBoardroomPresentation({
+    startupId: data.startupId,
+    event: openEvent,
+    boardConfidence: data.boardroomState.boardConfidence,
+    investorPatience: data.boardroomState.investorPatience,
+    founderControl: data.boardroomState.founderControl,
+  });
 
   return (
     <div className="space-y-5">
+      {resolvedNarrative && (
+        <div className="space-y-3">
+          {boardroomPresentation && (
+            <EventImpactBanner
+              event={{
+                ...boardroomPresentation,
+                eyebrow: "Boardroom Resolved",
+                title: "Investor Pressure Contained",
+                subtitle: resolvedNarrative,
+                severity: "medium",
+                primaryCta: { label: "Return to Operations", href: `/startup/${data.startupId}/operate` },
+              }}
+            />
+          )}
+          <RewardPopup
+            title="Boardroom Survived"
+            description={resolvedNarrative}
+            accent="amber"
+            ctaLabel="Return to Operations"
+            ctaHref={`/startup/${data.startupId}/operate`}
+          />
+        </div>
+      )}
+
+      {boardroomPresentation && !resolvedNarrative && (
+        <EventRevealPanel event={boardroomPresentation} />
+      )}
+
       {/* Active event or clear state */}
       {openEvent && !resolvedNarrative ? (
         <OpenEventPanel

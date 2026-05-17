@@ -113,7 +113,7 @@ Checks:
 6. [ ] **Accept Funding** — funding round created, startup status changes
 7. [ ] **Team** — hire employees, office setup works
 8. [ ] **Operate** — monthly decisions submit, simulation advances
-9. [ ] **Finalization** — 12 months complete, final score calculated
+9. [ ] **Finalization** — 12 Founder Weeks complete, final score calculated
 10. [ ] **Leaderboard** — entry appears on leaderboard
 11. [ ] **Profile** — XP, level, achievements visible
 12. [ ] **Share Page** — `/s/[slug]` works publicly

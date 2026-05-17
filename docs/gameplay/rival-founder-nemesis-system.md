@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Rival Founder system transforms Founder Arena from a solo startup simulator into a competitive founder roguelike. Each run generates 2–3 deterministic rival startups that evolve, make moves, react to player social actions, affect gameplay metrics, and appear in the Arena Feed throughout the 12-month simulation.
+The Rival Founder system transforms Founder Arena from a solo startup simulator into a competitive founder roguelike. Each run generates 2–3 deterministic rival startups that evolve, make moves, react to player social actions, affect gameplay metrics, and appear in the Arena Feed throughout the 12-week accelerator run.
 
 Rivals create meaningful competitive pressure — not as background noise, but as real opponents with identities, strategies, and momentum of their own.
 
@@ -87,11 +87,11 @@ The rival company snapshot, updated monthly.
 
 ---
 
-## Monthly Move Logic
+## Sprint Move Logic
 
 ### Move selection
 
-Each rival has a probability of acting per month:
+Each rival has a probability of acting per sprint:
 - Base: 40% chance
 - +Up to 35% from aggression stat
 - Adjusted by player state (see triggers below)
@@ -184,7 +184,7 @@ Rival feed items appear in the existing Arena Feed at `/startup/[id]/social` alo
 
 ## Simulation Effects
 
-Rival player effects feed directly into the monthly simulation result **after** the social layer but **before** the death check:
+Rival player effects feed directly into the sprint simulation result **after** the social layer but **before** the death check:
 
 - `revenueDelta` → added to `result.revenue`
 - `investorScoreDelta` → added to `result.investorScoreAfter`

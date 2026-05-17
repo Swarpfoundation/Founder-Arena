@@ -109,7 +109,7 @@ export default async function GraveyardPage() {
                         <div className="flex items-center gap-2 text-sm">
                           <Calendar className="w-3.5 h-3.5 text-white/40 shrink-0" />
                           <span className="text-white/40">Survived</span>
-                          <span className="font-medium ml-auto">{startup.monthsSurvived}mo</span>
+                          <span className="font-medium ml-auto">{startup.monthsSurvived}w</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                           <TrendingDown className="w-3.5 h-3.5 text-white/40 shrink-0" />
@@ -186,7 +186,7 @@ export default async function GraveyardPage() {
                       <div className="flex items-center gap-2 text-sm">
                         <Calendar className="w-3.5 h-3.5 text-white/40 shrink-0" />
                         <span className="text-white/40">Survived</span>
-                        <span className="font-medium ml-auto">{monthsSurvived}mo</span>
+                        <span className="font-medium ml-auto">{monthsSurvived}w</span>
                       </div>
                       {latestRound && (
                         <div className="flex items-center gap-2 text-sm">

@@ -427,7 +427,7 @@ export const EVENT_LIBRARY: SimulationEvent[] = [
     category: "investor",
     severity: "critical",
     narrative:
-      "Your lead VC sent a pointed email: 'We need to see a clear path to cash-flow positive by month 10 or we'll reconsider our pro-rata.'",
+      "Your lead VC sent a pointed email: 'We need to see a clear path to cash-flow positive by Week 10 or we'll reconsider our pro-rata.'",
     minMonth: 4,
     choices: [
       {

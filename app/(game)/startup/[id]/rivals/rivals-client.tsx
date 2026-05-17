@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   Skull,
@@ -26,6 +27,10 @@ import type {
 } from "@/lib/rivals/types";
 import { performCounterAction } from "@/lib/actions/rivals";
 import { cn } from "@/lib/utils";
+import { RewardPopup } from "@/components/game/RewardPopup";
+import { EventRevealPanel } from "@/components/game/EventRevealPanel";
+import { buildRivalMovePresentation } from "@/lib/gamefeel/critical-events";
+import { getRunStepLabel, getShortRunStepLabel } from "@/lib/game-time/time-scale";
 
 interface Props {
   startupId: string;
@@ -175,7 +180,7 @@ function RivalCard({
         {rival.latestMoveTitle && (
           <div className="mt-2 flex items-center gap-2 text-[10px] text-white/40 border border-white/5 bg-white/3 px-2 py-1">
             <Swords className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">Month {rival.latestMoveMonth}: {rival.latestMoveTitle}</span>
+            <span className="truncate">{getRunStepLabel(rival.latestMoveMonth)}: {rival.latestMoveTitle}</span>
           </div>
         )}
       </div>
@@ -264,7 +269,7 @@ function RivalMovesFeed({ moves }: { moves: RivalMove[] }) {
             )}
           >
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[9px] text-white/30 uppercase tracking-widest">Mo. {move.month}</span>
+              <span className="text-[9px] text-white/30 uppercase tracking-widest">{getShortRunStepLabel(move.month)}</span>
               <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest">
                 {move.rivalName}
               </span>
@@ -498,18 +503,22 @@ function RunComparison({ comparison }: { comparison: RivalRunComparison }) {
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
-function NoRivalsYet({ currentMonth }: { currentMonth: number }) {
+function NoRivalsYet({ currentMonth, startupId }: { currentMonth: number; startupId: string }) {
   return (
-    <div className="game-card p-8 text-center hud-corner">
+    <div className="game-card p-8 text-center hud-corner border-rose-500/20 bg-rose-500/5">
       <Skull className="w-8 h-8 text-white/20 mx-auto mb-3" />
-      <p className="text-white/40 text-sm uppercase tracking-wider font-bold mb-2">
-        No Rivals Detected
+      <p className="text-rose-400/70 text-[10px] uppercase tracking-[0.32em] font-black mb-2">
+        Arena Scan Empty
       </p>
-      <p className="text-white/30 text-xs max-w-sm mx-auto">
+      <h2 className="text-lg font-black uppercase tracking-wider text-white mb-2">No Rival Escalation This Sprint</h2>
+      <p className="text-white/45 text-xs max-w-sm mx-auto">
         {currentMonth === 0
-          ? "Rivals are generated when your first simulation month runs. Advance the simulation to encounter your competitors."
-          : "Rivals will emerge once your startup gains traction. Keep operating."}
+          ? "Rivals are generated when your first sprint simulation runs. Advance the simulation to encounter your competitors."
+          : "No rival has moved yet. Keep operating; competitors escalate as Demo Day approaches."}
       </p>
+      <Link href={`/startup/${startupId}/operate`} className="mt-5 inline-flex border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-[10px] font-black uppercase tracking-wider text-cyan-400 hover:bg-cyan-500/20">
+        Run Next Sprint
+      </Link>
     </div>
   );
 }
@@ -527,6 +536,11 @@ export function RivalsClient({
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const isRunOver = startupStatus === "completed" || startupStatus === "dead";
+  const defeatedRivals = rivals.filter((r) => r.isDefeated);
+  const latestMajorMove = [...moveHistory]
+    .reverse()
+    .find((move) => move.severity === "critical" || move.severity === "warning") ?? null;
+  const rivalPresentation = buildRivalMovePresentation({ startupId, move: latestMajorMove });
 
   function handleCounterResult(message: string, ok: boolean) {
     if (ok) {
@@ -539,6 +553,20 @@ export function RivalsClient({
   return (
     <div className="space-y-5">
       {/* Active run: threat summary bar */}
+      {!isRunOver && rivalPresentation && (
+        <EventRevealPanel event={rivalPresentation} dismissible sessionGuard />
+      )}
+
+      {defeatedRivals.length > 0 && (
+        <RewardPopup
+          title="Rival Defeated"
+          description={`${defeatedRivals[0].name} has been marked eliminated. Rival pressure now feeds your founder legacy.`}
+          accent="rose"
+          ctaLabel="View Rival Record"
+          ctaHref={`/startup/${startupId}/rivals`}
+        />
+      )}
+
       {!isRunOver && rivals.length > 0 && (
         <div className="game-card p-4 hud-corner">
           <div className="flex items-center gap-3 flex-wrap">
@@ -559,7 +587,7 @@ export function RivalsClient({
             })}
             <div className="ml-auto flex items-center gap-1 text-[9px] text-white/30">
               <AlertTriangle className="w-3 h-3" />
-              <span>Rivals act each month during simulation</span>
+              <span>Rivals act each sprint during simulation</span>
             </div>
           </div>
         </div>
@@ -567,7 +595,7 @@ export function RivalsClient({
 
       {/* Rival cards */}
       {rivals.length === 0 ? (
-        <NoRivalsYet currentMonth={currentMonth} />
+        <NoRivalsYet currentMonth={currentMonth} startupId={startupId} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {rivals.map((rival) => (
@@ -600,7 +628,7 @@ export function RivalsClient({
       {isRunOver && !comparison && rivals.length === 0 && (
         <div className="game-card p-6 text-center hud-corner">
           <CheckCircle2 className="w-6 h-6 text-white/20 mx-auto mb-2" />
-          <p className="text-white/40 text-xs">No rival data recorded for this run.</p>
+          <p className="text-white/40 text-xs">No rival escalation was recorded for this run.</p>
         </div>
       )}
 
@@ -608,7 +636,7 @@ export function RivalsClient({
       <div className="flex items-start gap-2 text-[10px] text-white/20">
         <Zap className="w-3 h-3 flex-shrink-0 mt-0.5" />
         <p>
-          Rivals make moves automatically each month during simulation. Social actions influence rival behavior.
+          Rivals make moves automatically each sprint during simulation. Social actions influence rival behavior.
           Counter-actions cost cash and affect your social metrics and rival rivalry scores.
         </p>
       </div>

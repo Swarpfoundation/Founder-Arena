@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { RewardPopup } from "@/components/game/RewardPopup";
+import { EventRevealPanel } from "@/components/game/EventRevealPanel";
 import type {
   FounderPlaystyle,
   StrategySignal,
@@ -11,6 +14,7 @@ import type {
   StrategyLevel,
 } from "@/lib/strategy/types";
 import { PLAYSTYLE_META } from "@/lib/strategy/strategy-catalog";
+import { getRunStepLabel, getShortRunStepLabel } from "@/lib/game-time/time-scale";
 
 // ─── Accent palette by playstyle color ────────────────────────────────────────
 
@@ -231,7 +235,7 @@ function StackCard({
               <div className="space-y-1">
                 {stack.recentSignals.slice(0, 3).map((sig) => (
                   <div key={sig.id} className="flex items-start gap-2">
-                    <span className="text-[9px] text-white/20 font-mono shrink-0 pt-0.5">M{sig.month}</span>
+                    <span className="text-[9px] text-white/20 font-mono shrink-0 pt-0.5">{getShortRunStepLabel(sig.month)}</span>
                     <span className="text-[10px] text-white/50">{sig.reason}</span>
                     <span className={cn("ml-auto text-[9px] font-bold shrink-0", col.text)}>+{sig.weight}</span>
                   </div>
@@ -252,7 +256,7 @@ function ActiveSynergiesPanel({ synergies }: { synergies: StrategySynergy[] }) {
     return (
       <div className="game-card p-4 hud-corner">
         <p className="text-[10px] text-white/30 font-bold uppercase tracking-wider mb-2">Active Synergies</p>
-        <p className="text-sm text-white/30">No synergies active yet. Reach 50 pts in any strategy stack.</p>
+        <p className="text-sm text-white/30">No synergy signal yet. Run another sprint to push a stack toward activation.</p>
       </div>
     );
   }
@@ -348,7 +352,7 @@ function SignalsFeed({ signals }: { signals: StrategySignal[] }) {
           const col = getColor(sig.playstyle);
           return (
             <div key={sig.id} className="flex items-start gap-2">
-              <span className="text-[9px] text-white/20 font-mono shrink-0 pt-0.5 w-6">M{sig.month}</span>
+              <span className="text-[9px] text-white/20 font-mono shrink-0 pt-0.5 w-6">{getShortRunStepLabel(sig.month)}</span>
               <span className="text-base leading-none shrink-0">{meta.icon}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] text-white/60">{sig.reason}</p>
@@ -410,7 +414,7 @@ function OverviewPanel({
         <div className="text-right shrink-0">
           <p className="text-[10px] text-white/30 uppercase tracking-wider">Signals</p>
           <p className="text-xl font-black text-white">{totalSignals}</p>
-          <p className="text-[9px] text-white/30">through M{currentMonth}</p>
+          <p className="text-[9px] text-white/30">through {getShortRunStepLabel(currentMonth)}</p>
         </div>
       </div>
 
@@ -501,6 +505,7 @@ interface StrategyClientProps {
 }
 
 export function StrategyClient({
+  startupId,
   startupStatus,
   currentMonth,
   signals,
@@ -523,15 +528,19 @@ export function StrategyClient({
   if (totalSignals === 0) {
     return (
       <div className="space-y-5">
-        <div className="game-card p-8 text-center hud-corner">
-          <p className="text-white/30 text-sm font-bold uppercase tracking-wider mb-2">
-            NO STRATEGY SIGNALS YET
+        <div className="game-card p-8 text-center hud-corner border-violet-500/20 bg-violet-500/5">
+          <p className="text-violet-400/70 text-[10px] font-black uppercase tracking-[0.32em] mb-2">
+            Founder Pattern Unknown
           </p>
+          <h2 className="text-lg font-black uppercase tracking-wider text-white mb-2">No Strategy Signals Yet</h2>
           <p className="text-white/50 text-sm leading-relaxed">
-            Your founder strategy emerges from the choices you make. Simulate months, hire
+            Your founder strategy emerges from the choices you make. Simulate sprints, hire
             team members, take social actions, and counter rivals to unlock a recognizable
             founder archetype.
           </p>
+          <Link href={`/startup/${startupId}/operate`} className="mt-5 inline-flex border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-[10px] font-black uppercase tracking-wider text-cyan-400 hover:bg-cyan-500/20">
+            Generate Signals
+          </Link>
         </div>
       </div>
     );
@@ -556,6 +565,36 @@ export function StrategyClient({
       {warnings.length > 0 && <WarningsPanel warnings={warnings} />}
 
       {/* Active synergies */}
+      {activeSynergies.length > 0 && (
+        <div className="space-y-3">
+          <EventRevealPanel
+            event={{
+              type: "strategy",
+              severity: activeSynergies.length > 1 ? "high" : "medium",
+              eyebrow: "Strategy Unlock",
+              title: "Synergy Online",
+              subtitle: `${activeSynergies[0].title} is active. Your playstyle now changes how the run resolves pressure.`,
+              accent: "violet",
+              primaryCta: { label: "Inspect Synergy", href: `/startup/${startupId}/strategy` },
+              affectedStats: [
+                { label: "Stack", value: PLAYSTYLE_META[activeSynergies[0].playstyle].title, accent: "violet" },
+                { label: "Synergies", value: activeSynergies.length, accent: "amber" },
+                { label: "Week", value: getRunStepLabel(currentMonth), accent: "cyan" },
+              ],
+              displayKey: `strategy:${startupId}:${activeSynergies[0].id}:${currentMonth}`,
+            }}
+            dismissible
+            sessionGuard
+          />
+          <RewardPopup
+            title="Strategy Synergy Online"
+            description={`${activeSynergies[0].title} is active. Your playstyle now changes how the run resolves pressure.`}
+            accent="amber"
+            ctaLabel="Inspect Synergy"
+            ctaHref={`/startup/${startupId}/strategy`}
+          />
+        </div>
+      )}
       <ActiveSynergiesPanel synergies={activeSynergies} />
 
       {/* Strategy stacks */}

@@ -41,7 +41,7 @@ export const BOARDROOM_EVENT_TEMPLATES: BoardroomEventTemplate[] = [
         id: "runway_pivot_revenue",
         title: "Revenue-First Pivot",
         stance: "pivot",
-        description: "Halt product development. Push every resource into closing paying customers this month.",
+        description: "Halt product development. Push every resource into closing paying customers this sprint.",
         projectedEffects: { revenueDelta: 3000, burnDelta: -3000, riskScoreDelta: -5, productProgressDelta: -5, investorPatienceDelta: 5, boardConfidenceDelta: 8 },
         risk: "medium",
         recommendedForPlaystyles: ["enterprise_sales", "community_led"],
@@ -66,7 +66,7 @@ export const BOARDROOM_EVENT_TEMPLATES: BoardroomEventTemplate[] = [
     titleTemplate: "Investor Confidence Crisis",
     concernTemplate: "Investor confidence has collapsed to {investorScore}/100. We need answers.",
     boardQuestionTemplate: "The board is losing faith. What will you do to restore investor confidence?",
-    contextTemplate: "{name}'s investor score has fallen to {investorScore} in month {month}.",
+    contextTemplate: "{name}'s investor score has fallen to {investorScore} in Week {month}.",
     tags: ["investors", "board", "confidence"],
     responseOptions: [
       {
@@ -116,9 +116,9 @@ export const BOARDROOM_EVENT_TEMPLATES: BoardroomEventTemplate[] = [
     pressureType: "revenue_miss",
     severity: "high",
     titleTemplate: "Revenue Miss Debrief",
-    concernTemplate: "Month {month} and revenue is ${revenue}. This is below every projection we made.",
+    concernTemplate: "Week {month} and revenue is ${revenue}. This is below every projection we made.",
     boardQuestionTemplate: "Revenue has missed targets. What is your path to first dollar — or next dollar?",
-    contextTemplate: "{name} has generated ${revenue}/mo revenue by month {month}.",
+    contextTemplate: "{name} has generated ${revenue}/mo revenue by Week {month}.",
     tags: ["revenue", "monetization", "growth"],
     responseOptions: [
       {
@@ -167,9 +167,9 @@ export const BOARDROOM_EVENT_TEMPLATES: BoardroomEventTemplate[] = [
     pressureType: "product_delay",
     severity: "medium",
     titleTemplate: "Product Roadmap Review",
-    concernTemplate: "Product is at {productProgress}% after {month} months. Milestone targets were missed.",
+    concernTemplate: "Product is at {productProgress}% after {month} Founder Weeks. Milestone targets were missed.",
     boardQuestionTemplate: "Why is the product behind schedule and how will you recover?",
-    contextTemplate: "{name} product progress is {productProgress}% at month {month}.",
+    contextTemplate: "{name} product progress is {productProgress}% at Week {month}.",
     tags: ["product", "engineering", "milestones"],
     responseOptions: [
       {
@@ -219,7 +219,7 @@ export const BOARDROOM_EVENT_TEMPLATES: BoardroomEventTemplate[] = [
     titleTemplate: "Brand Risk Hearing",
     concernTemplate: "Brand risk is at {brandRisk}/100. Public incidents are threatening investor relationships.",
     boardQuestionTemplate: "The brand is under fire. What is your crisis response plan?",
-    contextTemplate: "{name} has a brand risk score of {brandRisk} going into month {month}.",
+    contextTemplate: "{name} has a brand risk score of {brandRisk} going into Week {month}.",
     tags: ["brand", "reputation", "crisis", "social"],
     responseOptions: [
       {
@@ -322,7 +322,7 @@ export const BOARDROOM_EVENT_TEMPLATES: BoardroomEventTemplate[] = [
     titleTemplate: "Board Burn Rate Intervention",
     concernTemplate: "Monthly burn of ${burn} against ${revenue} revenue is unsustainable. The ratio is wrong.",
     boardQuestionTemplate: "Your burn-to-revenue ratio is alarming. What's the path to a healthy unit economy?",
-    contextTemplate: "{name} burning ${burn}/mo vs ${revenue}/mo revenue in month {month}.",
+    contextTemplate: "{name} burning ${burn}/mo vs ${revenue}/mo revenue in Week {month}.",
     tags: ["burn", "unit_economics", "finance"],
     responseOptions: [
       {
@@ -363,7 +363,7 @@ export const BOARDROOM_EVENT_TEMPLATES: BoardroomEventTemplate[] = [
     titleTemplate: "Compliance Risk Review",
     concernTemplate: "Risk score is at {riskScore}/100. Regulatory or legal exposure could sink this company.",
     boardQuestionTemplate: "Risk exposure is critical. What immediate compliance actions will you take?",
-    contextTemplate: "{name} has a risk score of {riskScore} at month {month} in {sector}.",
+    contextTemplate: "{name} has a risk score of {riskScore} at Week {month} in {sector}.",
     tags: ["compliance", "risk", "legal", "regulation"],
     responseOptions: [
       {
@@ -403,9 +403,9 @@ export const BOARDROOM_EVENT_TEMPLATES: BoardroomEventTemplate[] = [
     pressureType: "fundraising_pressure",
     severity: "medium",
     titleTemplate: "Fundraising Strategy Meeting",
-    concernTemplate: "It's month {month} and you haven't raised a new round. Cash position is weakening.",
+    concernTemplate: "It's Week {month} and you haven't raised a new round. Cash position is weakening.",
     boardQuestionTemplate: "When and how are you planning your next raise?",
-    contextTemplate: "{name} is in month {month} without a new round. Runway: {runway} months.",
+    contextTemplate: "{name} is in Week {month} without a new round. Runway: {runway} months.",
     tags: ["fundraising", "capital", "strategy"],
     responseOptions: [
       {

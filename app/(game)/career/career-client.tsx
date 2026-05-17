@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { CareerPageData } from "@/lib/actions/career";
 import type { FounderRankKey } from "@/lib/career/types";
 import { BADGE_CATALOG } from "@/lib/career/badge-catalog";
+import { formatRunDuration, getRunStepLabel } from "@/lib/game-time/time-scale";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -199,9 +200,9 @@ function CareerStatsGrid({ data }: { data: CareerPageData }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatTile label="Breakouts" value={data.totalBreakouts} accent="amber" />
         <StatTile label="Acquisitions" value={data.totalAcquisitions} accent="emerald" />
-        <StatTile label="Survived 12mo" value={data.totalSurvived12} accent="cyan" />
+        <StatTile label="Survived 12 Weeks" value={data.totalSurvived12} accent="cyan" />
         <StatTile label="Survival Rate" value={`${data.survivalRate}%`} accent="violet" />
-        <StatTile label="Months Played" value={data.totalMonthsPlayed} accent="cyan" />
+        <StatTile label="Founder Weeks Played" value={data.totalMonthsPlayed} accent="cyan" />
         <StatTile label="Total Revenue" value={fmt(totalRev)} accent="amber" />
         <StatTile label="Best Score" value={data.bestScore} accent="violet" />
         <StatTile label="Best Valuation" value={fmt(data.bestValuation)} accent="emerald" />
@@ -217,8 +218,9 @@ function BestRunCard({ run, data }: { run: CareerPageData["bestRun"]; data: Care
     return (
       <div>
         <SectionHeader label="Best Run" />
-        <div className="game-card p-6 hud-corner text-center">
-          <p className="text-white/30 text-sm">No completed runs yet.</p>
+        <div className="game-card p-6 hud-corner text-center border-amber-500/20 bg-amber-500/5">
+          <p className="mb-1 text-[10px] font-black uppercase tracking-[0.32em] text-amber-400/60">Legacy Empty</p>
+          <p className="text-white/55 text-sm">No completed runs yet. Finish or fail a startup to stamp your first founder record.</p>
           <Link href="/startup/new">
             <div className="mt-4 inline-block px-6 py-2 border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-bold tracking-wider uppercase cursor-pointer hover:bg-cyan-500/20 transition-colors">
               DEPLOY STARTUP
@@ -236,7 +238,7 @@ function BestRunCard({ run, data }: { run: CareerPageData["bestRun"]; data: Care
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-lg font-black text-white">{run.startupName}</p>
-            <p className="text-xs text-white/40 mt-0.5">{run.sector} · Month {run.monthsSurvived}</p>
+            <p className="text-xs text-white/40 mt-0.5">{run.sector} · {getRunStepLabel(run.monthsSurvived)}</p>
           </div>
           <OutcomeBadge outcome={run.outcome} />
         </div>
@@ -288,8 +290,8 @@ function PlaystyleMasteryPanel({ data }: { data: CareerPageData }) {
     <div>
       <SectionHeader label="Playstyle Mastery" />
       {!hasSome && (
-        <div className="game-card p-4 text-center">
-          <p className="text-white/30 text-xs">No playstyle patterns detected yet. Play more runs to develop your archetype.</p>
+        <div className="game-card p-4 text-center border-violet-500/20 bg-violet-500/5">
+          <p className="text-white/45 text-xs">No playstyle pattern detected yet. Sprint decisions, hires, social actions, and boardroom responses will reveal your founder archetype.</p>
         </div>
       )}
       <div className="space-y-2">
@@ -330,8 +332,8 @@ function SectorMasteryPanel({ data }: { data: CareerPageData }) {
     return (
       <div>
         <SectionHeader label="Sector Mastery" />
-        <div className="game-card p-4 text-center">
-          <p className="text-white/30 text-xs">No sector data yet.</p>
+        <div className="game-card p-4 text-center border-cyan-500/20 bg-cyan-500/5">
+          <p className="text-white/45 text-xs">No sector mastery yet. Deploy a startup and finish a run to begin comparing markets.</p>
         </div>
       </div>
     );
@@ -486,7 +488,7 @@ function RecentRunsTimeline({ data }: { data: CareerPageData }) {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-white truncate">{run.startupName}</p>
                   <p className="text-[9px] text-white/30">
-                    {run.sector} · {run.monthsSurvived}mo
+                    {run.sector} · {run.monthsSurvived}/{formatRunDuration()}
                     {ps ? ` · ${ps.icon} ${ps.title}` : ""}
                   </p>
                 </div>

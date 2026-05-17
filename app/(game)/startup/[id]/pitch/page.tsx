@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { GameCard } from "@/components/game/GameCard";
+import { StartupRunHud } from "@/components/game/StartupRunHud";
+import { PageReveal } from "@/components/game/PageReveal";
 import { z } from "zod";
 import {
   Wand2,
@@ -21,6 +23,7 @@ import {
   AlertTriangle,
   ExternalLink,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const fieldList = [
   "problem",
@@ -67,6 +70,7 @@ export default function PitchBuilderPage({ params }: { params: Promise<{ id: str
     monetizationModel: string;
     unfairAdvantage: string;
     fundingAsk: number;
+    status: string;
   } | null>(null);
 
   useEffect(() => {
@@ -86,6 +90,7 @@ export default function PitchBuilderPage({ params }: { params: Promise<{ id: str
         monetizationModel: startup.monetizationModel ?? "",
         unfairAdvantage: startup.unfairAdvantage ?? "",
         fundingAsk: startup.fundingAsk ?? 500000,
+        status: startup.status,
       });
 
       if (startup.pitchDeck) {
@@ -164,18 +169,48 @@ export default function PitchBuilderPage({ params }: { params: Promise<{ id: str
     : 0;
 
   return (
-    <div className="max-w-3xl mx-auto pt-24 pb-12 px-4 md:px-8">
+    <PageReveal className="max-w-3xl mx-auto pt-24 pb-12 px-4 md:px-8">
       <div className="mb-6">
         <button onClick={() => router.push(`/startup/${startupId}`)} className="text-sm text-white/40 hover:text-white transition-colors">
           ← Back to Startup
         </button>
       </div>
 
-      <p className="text-[10px] tracking-[0.4em] text-cyan-400/40 mb-2">TACTICAL BRIEFING</p>
-      <h1 className="text-3xl md:text-4xl font-black text-white text-glow-cyan tracking-tight mb-2">PITCH BUILDER</h1>
+      <p className="text-[10px] tracking-[0.4em] text-cyan-400/40 mb-2">Pitch Deck Console</p>
+      <h1 className="text-3xl md:text-4xl font-black text-white text-glow-cyan tracking-tight mb-2">Investor Entry Ritual</h1>
       <p className="text-white/40 mb-8">
-        Craft your pitch deck section by section. A strong pitch leads to better VC scores and terms.
+        Investors do not fund ideas. They fund pressure-tested execution. Build the pitch, send it to review, then negotiate the capital that unlocks Week 1.
       </p>
+
+      {startupId && (
+        <StartupRunHud
+          startupId={startupId}
+          status={startupData?.status ?? "draft"}
+          className="mb-6"
+        />
+      )}
+
+      <div className="mb-6 grid grid-cols-4 gap-2">
+        {[
+          { label: "Brief", active: true },
+          { label: "VC Review", active: hasExistingPitch },
+          { label: "Terms", active: false },
+          { label: "Week 1", active: false },
+        ].map((step, index) => (
+          <div
+            key={step.label}
+            className={cn(
+              "border px-3 py-2 text-center",
+              step.active
+                ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-400"
+                : "border-white/10 bg-white/[0.02] text-white/30"
+            )}
+          >
+            <p className="text-[9px] font-black uppercase tracking-wider">{String(index + 1).padStart(2, "0")}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider">{step.label}</p>
+          </div>
+        ))}
+      </div>
 
       {globalError && (
         <div className="mb-6 rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
@@ -400,7 +435,7 @@ export default function PitchBuilderPage({ params }: { params: Promise<{ id: str
               <div className="absolute top-0 left-0 w-2 h-2 border-l border-t border-violet-400" />
               <div className="absolute bottom-0 right-0 w-2 h-2 border-r border-b border-violet-400" />
               <Send className="w-4 h-4 text-violet-400" />
-              <span className="text-violet-400 font-bold text-xs tracking-wider uppercase">{submitPending ? "SUBMITTING..." : "SUBMIT FOR REVIEW"}</span>
+              <span className="text-violet-400 font-bold text-xs tracking-wider uppercase">{submitPending ? "SUBMITTING..." : "ENTER VC REVIEW CHAMBER"}</span>
             </button>
           )}
 
@@ -409,7 +444,7 @@ export default function PitchBuilderPage({ params }: { params: Promise<{ id: str
           </button>
         </div>
       </form>
-    </div>
+    </PageReveal>
   );
 }
 

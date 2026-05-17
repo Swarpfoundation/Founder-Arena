@@ -111,7 +111,7 @@ export function selectGenre(
 
 const TITLE_POOLS: Record<string, string[]> = {
   BREAKOUT: [
-    "The {months}-Month Breakout",
+    "The {months}-Week Breakout",
     "How {name} Took the Arena",
     "From Pitch Deck to Power Move",
     "Built Different, Scaled Faster",
@@ -146,7 +146,7 @@ const TITLE_POOLS: Record<string, string[]> = {
   DEAD: [
     "The Runway Went Dark",
     "A Beautiful Deck, A Brutal Burn",
-    "Death by Month {months}",
+    "Death by Week {months}",
     "Lessons from the Graveyard",
     "The {sector} Experiment That Wasn't",
   ],
@@ -212,8 +212,8 @@ const TAGLINE_POOLS: Record<DocumentaryTone, string[]> = {
   ],
   gritty: [
     "It wasn't pretty. It was real.",
-    "Every month was a decision.",
-    "No shortcuts. Just months.",
+    "Every sprint was a decision.",
+    "No shortcuts. Just sprints.",
   ],
   tragic: [
     "The rival arrived. The runway didn't last.",
@@ -409,28 +409,28 @@ function buildVerdictChapter(input: DocumentaryEngineInput): FounderDocumentaryC
 
   let body: string;
   if (outcome === "BREAKOUT") {
-    body = `${startup.name} reached breakout. ${months} months of execution. Final score: ${score}. ${summary || "The market validated the thesis."}`;
+    body = `${startup.name} reached breakout. ${months} Founder Weeks of execution. Final score: ${score}. ${summary || "The market validated the thesis."}`;
   } else if (outcome === "SERIES_A_READY") {
-    body = `${startup.name} hit Series A territory in ${months} months. Score: ${score}. ${summary || "The metrics spoke clearly."}`;
+    body = `${startup.name} hit Series A territory in ${months} Founder Weeks. Score: ${score}. ${summary || "The metrics spoke clearly."}`;
   } else if (outcome === "ACQUISITION" || outcome === "ACQUIHIRE") {
     const verb = outcome === "ACQUIHIRE" ? "acquired for the team" : "acquired";
-    body = `${startup.name} was ${verb}. ${months} months translated into an exit. Score: ${score}. ${summary || "The deal was the right outcome at the right time."}`;
+    body = `${startup.name} was ${verb}. ${months} Founder Weeks translated into an exit. Score: ${score}. ${summary || "The deal was the right outcome at the right time."}`;
   } else if (DEAD_OUTCOMES.has(outcome) || outcome === "DEAD") {
     const reason = startup.deathReason ?? (summary || "The runway ran out.");
-    body = `${startup.name} died at month ${months}. Score: ${score}. ${reason}`;
+    body = `${startup.name} died at Week ${months}. Score: ${score}. ${reason}`;
   } else if (outcome === "ZOMBIE") {
-    body = `${startup.name} survived ${months} months without a clear trajectory. Score: ${score}. Alive — but not winning.`;
+    body = `${startup.name} survived ${months} Founder Weeks without a clear trajectory. Score: ${score}. Alive — but not winning.`;
   } else if (outcome === "SMALL_PROFITABLE") {
-    body = `${startup.name} reached small-scale profitability in ${months} months. Score: ${score}. Not every run needs to be a breakout.`;
+    body = `${startup.name} reached small-scale profitability in ${months} Founder Weeks. Score: ${score}. Not every run needs to be a breakout.`;
   } else if (outcome === "SEED_READY") {
-    body = `${startup.name} proved the concept in ${months} months. Score: ${score}. Seed-stage validation complete.`;
+    body = `${startup.name} proved the concept in ${months} Founder Weeks. Score: ${score}. Seed-stage validation complete.`;
   } else if (outcome === "ACQUISITION_TARGET") {
-    body = `${startup.name} became an acquisition target. ${months} months attracted outside interest. Score: ${score}.`;
+    body = `${startup.name} became an acquisition target. ${months} Founder Weeks attracted outside interest. Score: ${score}.`;
   } else {
-    body = `${startup.name} completed ${months} months with outcome: ${outcome}. Score: ${score}. ${summary}`;
+    body = `${startup.name} completed ${months} Founder Weeks with outcome: ${outcome}. Score: ${score}. ${summary}`;
   }
 
-  return chapter("verdict", "Final Verdict", body.trim(), "verdict", [outcome.toLowerCase(), "final"]);
+  return chapter("verdict", "Demo Day Verdict", body.trim(), "verdict", [outcome.toLowerCase(), "final"]);
 }
 
 // ─── Summary builders ─────────────────────────────────────────────────────────
@@ -541,16 +541,16 @@ function buildFinalVerdict(input: DocumentaryEngineInput): string {
     ? ` Strategy: ${displayPlaystyle(archetype.dominantPlaystyle)}.`
     : "";
 
-  if (outcome === "BREAKOUT") return `${months} months, ${score} points. A breakout run.${strategyLine} The arena remembers this one.`;
-  if (outcome === "SERIES_A_READY") return `${months} months, ${score} points. Institutional grade.${strategyLine} Series A ready.`;
-  if (outcome === "ACQUISITION" || outcome === "ACQUIHIRE") return `${months} months, ${score} points. Exited.${strategyLine} The deal was the result.`;
+  if (outcome === "BREAKOUT") return `${months} Founder Weeks, ${score} points. A breakout run.${strategyLine} The arena remembers this one.`;
+  if (outcome === "SERIES_A_READY") return `${months} Founder Weeks, ${score} points. Institutional grade.${strategyLine} Series A ready.`;
+  if (outcome === "ACQUISITION" || outcome === "ACQUIHIRE") return `${months} Founder Weeks, ${score} points. Exited.${strategyLine} The deal was the result.`;
   if (DEAD_OUTCOMES.has(outcome) || outcome === "DEAD") {
     const reason = input.startup.deathReason ?? "The runway ran out.";
-    return `${months} months. Dead. ${reason}${strategyLine}`;
+    return `${months} Founder Weeks. Dead. ${reason}${strategyLine}`;
   }
-  if (outcome === "SMALL_PROFITABLE") return `${months} months, ${score} points. Small and profitable.${strategyLine}`;
-  if (outcome === "SEED_READY") return `${months} months, ${score} points. Seed-ready.${strategyLine} Early traction proved the thesis.`;
-  return `${months} months, ${score} points. Outcome: ${outcome}.${strategyLine}`;
+  if (outcome === "SMALL_PROFITABLE") return `${months} Founder Weeks, ${score} points. Small and profitable.${strategyLine}`;
+  if (outcome === "SEED_READY") return `${months} Founder Weeks, ${score} points. Seed-ready.${strategyLine} Early traction proved the thesis.`;
+  return `${months} Founder Weeks, ${score} points. Outcome: ${outcome}.${strategyLine}`;
 }
 
 // ─── Tags ─────────────────────────────────────────────────────────────────────

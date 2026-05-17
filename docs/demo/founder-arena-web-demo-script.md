@@ -3,7 +3,7 @@
 ## 30-Second Pitch
 
 > "Founder Arena is a startup roguelike. You create a startup, pitch it to AI VCs,
-> raise funding, build a team, and run 12 months of compounding crises. Social media
+> raise funding, build a team, and run 12 Founder Weeks of compounding crises. Social media
 > pressure, rival founders, boardroom conflicts, and strategy archetypes all emerge
 > from your actual decisions — not predetermined scripts. Every run ends with a
 > documentary and a permanent entry in your founder career record. Compete on
@@ -42,10 +42,10 @@ If no completed run available, go to: `/leaderboard`
 
 If you have an active startup, go to: `/startup/[id]/operate`
 
-Show the monthly simulation:
+Show the sprint simulation:
 - Show cash, burn, revenue
 - Point to the next action prompt
-- Run one month if time allows
+- Run one sprint if time allows
 - After running: show the Arena Feed tab
 
 Then: `/startup/[id]/rivals`
@@ -139,7 +139,7 @@ AI is used for:
 - Founder coaching (end-of-run)
 
 AI is NOT used for:
-- Monthly simulation results
+- Sprint simulation results
 - Boardroom events or effects
 - Rival generation or behavior
 - Strategy archetype calculation
@@ -159,9 +159,9 @@ AI is NOT used for:
 
 ## Known Limitations for Demo Honesty
 
-- Runs take time: a full 12-month run requires multiple operate clicks.
+- Runs take time: a full 12-week accelerator run requires multiple operate clicks.
 - Boardroom events require hitting crisis thresholds — they don't fire on demand.
-- Rival generation happens in the background during monthly simulation.
+- Rival generation happens in the background during sprint simulation.
 - Documentary only generates after the run is finalized (completed or dead).
 - Leaderboard only shows entries from completed runs.
 - No mobile-optimized layout (web is desktop-first currently).
@@ -175,5 +175,6 @@ AI is NOT used for:
 - Do not claim real investor matching. VC reviews are AI simulations.
 - Do not claim AI-generated documentaries in the LLM film sense — it uses AI coaching + structured narrative templates.
 - Do not claim real payments are live unless billing is explicitly confirmed.
+- Do not claim real infrastructure, deployment, database, bandwidth, LLM, or GPU burn modeling yet.
 - Do not claim iOS app is shipped unless confirmed.
 - Do not claim user counts or traction metrics unless you have verified data.

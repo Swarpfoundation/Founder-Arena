@@ -38,9 +38,9 @@ export const LOCKED_STATES: Record<string, LockedStateInfo> = {
     label: "STRATEGY // LOCKED",
     headline: "Your Strategy Emerges From Your Decisions",
     description:
-      "The strategy stack builds automatically as you run months, manage crises, hire, and respond to boardroom pressure. No menu — just your pattern of play.",
+      "The strategy stack builds automatically as you run sprints, manage crises, hire, and respond to boardroom pressure. No menu — just your pattern of play.",
     flavor:
-      "Strategy emerges from your decisions, not a menu choice. Run months to reveal your founder archetype.",
+      "Strategy emerges from your decisions, not a menu choice. Run sprints to reveal your founder archetype.",
     unlockCondition: "Unlocks when: startup is funded and operating.",
     nextAction: "GO TO PITCH",
     nextActionHref: (id) => `/startup/${id}/pitch`,
@@ -52,15 +52,15 @@ export const LOCKED_STATES: Record<string, LockedStateInfo> = {
       "When runway drops, revenue misses, rivals overtake, or brand risk spikes — the board calls an emergency meeting. Your response determines investor confidence.",
     flavor:
       "Boardroom pressure tests whether investors still trust you. Choose your response carefully — effects are permanent.",
-    unlockCondition: "Fires automatically when: metrics hit crisis thresholds (usually month 2+).",
-    nextAction: "RUN A MONTH",
+    unlockCondition: "Fires automatically when: metrics hit crisis thresholds (usually Week 2+).",
+    nextAction: "RUN A SPRINT",
     nextActionHref: (id) => `/startup/${id}/operate`,
   },
   documentary: {
     label: "FOUNDER DOCUMENTARY // LOCKED",
     headline: "Your Documentary Generates When the Run Ends",
     description:
-      "When your startup completes its 12-month run — or dies — Founder Arena generates a documentary: narrative arc, key moments, rival battles, boardroom drama, and final outcome.",
+      "When your startup completes its 12-week accelerator run — or dies — Founder Arena generates a documentary: narrative arc, key moments, rival battles, boardroom drama, and final outcome.",
     flavor:
       "Every finished run becomes a founder documentary and career legacy. Finish the run to unlock it.",
     unlockCondition: "Unlocks when: startup run is completed or dead.",

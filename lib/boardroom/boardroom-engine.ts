@@ -201,7 +201,7 @@ const OUTCOME_NARRATIVES: Record<string, Record<string, string>> = {
   runway_crisis: {
     runway_cut_burn: "The board accepted the burn cuts. Runway extended. Everyone's watching.",
     runway_emergency_raise: "Emergency round initiated. Investors are nervous but listening.",
-    runway_pivot_revenue: "Revenue-first sprint activated. No product work this month — only sales.",
+    runway_pivot_revenue: "Revenue-first sprint activated. No product work this sprint — only sales.",
     runway_transparent_hold: "The board granted 60 days. The clock is ticking.",
   },
   investor_conflict: {

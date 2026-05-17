@@ -9,7 +9,22 @@ import { SimulationEvent } from "@/lib/events/types";
 import { previewChoiceEffects } from "@/lib/events/event-selection";
 import { GameCard } from "@/components/game/GameCard";
 import { ProgressBar } from "@/components/game/ProgressBar";
+import { StatDeltaRecap, type RecapHighlight } from "@/components/game/StatDeltaRecap";
+import { EventRevealPanel } from "@/components/game/EventRevealPanel";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { cn } from "@/lib/utils";
+import type { StatDeltaItem } from "@/lib/gamefeel/ceremony";
+import { buildSimulationEventPresentation } from "@/lib/gamefeel/critical-events";
+import {
+  getDemoDayLabel,
+  getDemoDayCountdown,
+  getFinalVerdictLabel,
+  getRunPhaseLabel,
+  getRunStepLabel,
+  getShortRunStepLabel,
+  getSprintMilestoneLabel,
+  getSprintNextActionHint,
+} from "@/lib/game-time/time-scale";
 import {
   Zap,
   TrendingUp,
@@ -99,6 +114,25 @@ interface OperateClientProps {
   costBreakdown?: TotalCostEstimate | null;
 }
 
+interface MonthRecapPayload {
+  month: number;
+  deltas: StatDeltaItem[];
+  highlights: RecapHighlight[];
+  nextAction: { label: string; href: string };
+}
+
+type SimulationActionResult =
+  | { success: true; recap?: MonthRecapPayload }
+  | {
+      outcome: string;
+      reason?: string;
+      founderScore?: number;
+      publicSlug?: string;
+      achievementsUnlocked?: string[];
+      xpGained?: number;
+      recap?: MonthRecapPayload;
+    };
+
 export function OperateClient({
   startupId,
   currentMonth,
@@ -119,13 +153,24 @@ export function OperateClient({
   const [selectedDecisions, setSelectedDecisions] = useState<string[]>([]);
   const [selectedEventChoice, setSelectedEventChoice] = useState<string | null>(null);
   const [error, setError] = useState<string>("");
-  const [result, setResult] = useState<{ outcome?: string; reason?: string; founderScore?: number } | null>(null);
+  const [result, setResult] = useState<SimulationActionResult | null>(null);
+  const [monthRecap, setMonthRecap] = useState<MonthRecapPayload | null>(null);
   const [monthComplete, setMonthComplete] = useState(false);
   const [pending, setPending] = useState(false);
+  const reduced = useReducedMotion();
 
   const nextMonth = currentMonth + 1;
+  const nextStepLabel = getRunStepLabel(nextMonth);
+  const nextShortStepLabel = getShortRunStepLabel(nextMonth);
+  const nextPhaseLabel = getRunPhaseLabel(nextMonth);
+  const nextMilestone = getSprintMilestoneLabel(nextMonth);
+  const nextCountdown = getDemoDayCountdown(nextMonth);
+  const nextSprintHint = getSprintNextActionHint(nextMonth);
   const hasEvent = !!monthlyEvent && eventChoices.length > 0;
   const eventResolved = !hasEvent || selectedEventChoice !== null;
+  const eventPresentation = hasEvent
+    ? buildSimulationEventPresentation({ startupId, event: monthlyEvent })
+    : null;
 
   function toggleDecision(id: string) {
     setSelectedDecisions((prev) => {
@@ -139,6 +184,7 @@ export function OperateClient({
   async function handleSubmit() {
     setError("");
     setResult(null);
+    setMonthRecap(null);
     setMonthComplete(false);
     setPending(true);
 
@@ -148,10 +194,11 @@ export function OperateClient({
         selectedDecisions,
         selectedEventChoice ?? undefined
       );
-      if ("outcome" in res) {
-        setResult(res);
-      } else {
+      if ("success" in res) {
+        setMonthRecap(res.recap ?? null);
         setMonthComplete(true);
+      } else {
+        setResult(res);
       }
       setSelectedDecisions([]);
       setSelectedEventChoice(null);
@@ -170,26 +217,26 @@ export function OperateClient({
 
   return (
     <div className="mb-8 space-y-5 relative">
-      {/* Month Simulation Overlay */}
+      {/* Sprint Simulation Overlay */}
       <AnimatePresence>
         {pending && (
           <motion.div
             className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={reduced ? false : { opacity: 0 }}
+            animate={reduced ? undefined : { opacity: 1 }}
+            exit={reduced ? undefined : { opacity: 0 }}
           >
             <div className="text-center">
               <motion.div
                 className="text-8xl font-black text-cyan-400 text-glow-cyan"
-                animate={{ scale: [1, 1.1, 1] }}
+                animate={reduced ? undefined : { scale: [1, 1.1, 1] }}
                 transition={{ duration: 0.5, repeat: Infinity }}
               >
-                M{nextMonth.toString().padStart(2, "0")}
+                {nextShortStepLabel}
               </motion.div>
               <div className="flex items-center gap-2 justify-center mt-4">
                 <div className="w-2 h-2 bg-cyan-400 animate-pulse" />
-                <p className="text-xs text-slate-400 tracking-widest">SIMULATING MONTH</p>
+                <p className="text-xs text-slate-400 tracking-widest">SIMULATING SPRINT</p>
                 <div className="w-2 h-2 bg-cyan-400 animate-pulse" />
               </div>
             </div>
@@ -202,39 +249,23 @@ export function OperateClient({
         {hasEvent && !selectedEventChoice && (
           <motion.div
             className="fixed inset-0 z-[90] flex items-center justify-center p-5"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={reduced ? false : { opacity: 0 }}
+            animate={reduced ? undefined : { opacity: 1 }}
+            exit={reduced ? undefined : { opacity: 0 }}
           >
             <div className="absolute inset-0 bg-black/80" />
             <motion.div
               className="relative z-10 w-full max-w-md"
-              initial={{ scale: 0.5, y: 50 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.8, y: -30 }}
+              initial={reduced ? false : { scale: 0.5, y: 50 }}
+              animate={reduced ? undefined : { scale: 1, y: 0 }}
+              exit={reduced ? undefined : { scale: 0.8, y: -30 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
             >
-              <div className="game-card p-6 border-2 border-rose-500/30 hud-corner">
-                <motion.div
-                  className="absolute inset-0 border-2 border-rose-500/20"
-                  animate={{ opacity: [0.2, 0.6, 0.2] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                />
+              <div className="game-card p-4 border-2 border-rose-500/30 hud-corner">
                 <div className="relative z-10 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <motion.div
-                      className="w-12 h-12 bg-rose-500/20 flex items-center justify-center"
-                      animate={{ scale: [1, 1.1, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                    >
-                      <AlertTriangle className="w-6 h-6 text-rose-400" />
-                    </motion.div>
-                    <div>
-                      <h3 className="text-lg font-black text-rose-400">{monthlyEvent!.title}</h3>
-                      <p className="text-[10px] text-rose-400/60 font-bold uppercase tracking-wider">Critical Event</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-slate-300">{monthlyEvent!.narrative}</p>
+                  {eventPresentation && (
+                    <EventRevealPanel event={eventPresentation} className="p-4" />
+                  )}
 
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 border px-2 py-0.5 text-xs capitalize text-white/40 border-white/10 bg-white/5">
@@ -606,7 +637,7 @@ export function OperateClient({
         <div>
           <h3 className="text-sm font-bold text-white mb-3 tracking-wider uppercase flex items-center gap-2">
             <Target className="w-4 h-4 text-cyan-400" />
-            Monthly Decisions
+            Sprint Decisions
           </h3>
           <div className="space-y-2">
             {availableDecisions.map((decision, i) => {
@@ -654,23 +685,33 @@ export function OperateClient({
         </div>
       )}
 
-      {/* Run Month Button */}
+      {/* Run Sprint Button */}
       {eventResolved && (
-        <motion.button
-          className={cn(
-            "w-full h-16 font-black text-lg tracking-wider flex items-center justify-center gap-3 transition-all border",
-            selectedDecisions.length > 0 && !pending
-              ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-400 glow-cyan"
-              : "bg-slate-800/50 border-slate-700/50 text-slate-500 cursor-not-allowed"
-          )}
-          whileHover={selectedDecisions.length > 0 && !pending ? { scale: 1.03, y: -2 } : undefined}
-          whileTap={selectedDecisions.length > 0 && !pending ? { scale: 0.97 } : undefined}
-          onClick={handleSubmit}
-          disabled={!selectedDecisions.length || pending}
-        >
-          <Clock className="w-6 h-6" />
-          {selectedDecisions.length > 0 ? "RUN MONTH" : "SELECT DECISION"}
-        </motion.button>
+        <div className="space-y-3">
+          <div className="border border-cyan-500/20 bg-cyan-500/5 p-3 hud-corner">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <span className="text-[9px] font-black uppercase tracking-[0.28em] text-cyan-400">{nextStepLabel}</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-white/35">{nextPhaseLabel}</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400/70">{nextMilestone ?? nextCountdown}</span>
+            </div>
+            <p className="text-xs leading-relaxed text-white/50">{nextSprintHint}</p>
+          </div>
+          <motion.button
+            className={cn(
+              "w-full h-16 font-black text-lg tracking-wider flex items-center justify-center gap-3 transition-all border",
+              selectedDecisions.length > 0 && !pending
+                ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-400 glow-cyan"
+                : "bg-slate-800/50 border-slate-700/50 text-slate-500 cursor-not-allowed"
+            )}
+            whileHover={selectedDecisions.length > 0 && !pending ? { scale: 1.03, y: -2 } : undefined}
+            whileTap={selectedDecisions.length > 0 && !pending ? { scale: 0.97 } : undefined}
+            onClick={handleSubmit}
+            disabled={!selectedDecisions.length || pending}
+          >
+            <Clock className="w-6 h-6" />
+            {selectedDecisions.length > 0 ? "RUN SPRINT" : "SELECT DECISION"}
+          </motion.button>
+        </div>
       )}
 
       {/* Error */}
@@ -680,29 +721,38 @@ export function OperateClient({
         </GameCard>
       )}
 
-      {/* Month Complete Result */}
+      {/* Sprint Complete Result */}
       <AnimatePresence>
         {monthComplete && !result && (
           <motion.div
-            className="game-card p-6 border-2 border-emerald-500/30 hud-corner"
+            className="space-y-4"
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
           >
-            <div className="text-center space-y-4">
+            {monthRecap && (
+              <StatDeltaRecap
+                title={`${getRunStepLabel(monthRecap.month)} Sprint Recap`}
+                deltas={monthRecap.deltas}
+                highlights={monthRecap.highlights}
+                nextAction={monthRecap.nextAction}
+                phaseStep={monthRecap.month}
+              />
+            )}
+            <div className="game-card p-6 border-2 border-emerald-500/30 hud-corner text-center space-y-4">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/20 border border-emerald-500/20">
                 <TrendingUp className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs font-bold text-emerald-400 tracking-wider">Operation Complete</span>
               </div>
-              <h3 className="text-2xl font-black text-white">Month {nextMonth} Done</h3>
+              <h3 className="text-2xl font-black text-white">{nextStepLabel} Done</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div className="p-3 bg-emerald-500/10">
                   <p className="text-[10px] text-emerald-400/60 uppercase">Decisions</p>
                   <p className="text-lg font-black text-emerald-400">{selectedDecisions.length}</p>
                 </div>
                 <div className="p-3 bg-cyan-500/10">
-                  <p className="text-[10px] text-cyan-400/60 uppercase">Month</p>
-                  <p className="text-lg font-black text-cyan-400">{nextMonth}</p>
+                  <p className="text-[10px] text-cyan-400/60 uppercase">Week</p>
+                  <p className="text-lg font-black text-cyan-400">{nextShortStepLabel}</p>
                 </div>
                 <div className="p-3 bg-rose-500/10">
                   <p className="text-[10px] text-rose-400/60 uppercase">Event</p>
@@ -723,17 +773,38 @@ export function OperateClient({
 
       {/* Final Outcome Result */}
       <AnimatePresence>
-        {result?.outcome && (
+        {result && "outcome" in result && result.outcome && (
           <motion.div
-            className="game-card p-6 border-2 border-emerald-500/30 hud-corner"
+            className="space-y-4"
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
           >
-            <div className="text-center space-y-4">
+            {result.recap && (
+              <StatDeltaRecap
+                title={`${getDemoDayLabel()} Sprint ${result.recap.month} Recap`}
+                deltas={result.recap.deltas}
+                highlights={[
+                  ...result.recap.highlights,
+                  ...(result.achievementsUnlocked?.length
+                    ? [{
+                        label: "Rewards",
+                        text: `${result.achievementsUnlocked.length} achievement signal${result.achievementsUnlocked.length === 1 ? "" : "s"} unlocked. XP +${result.xpGained ?? 0}.`,
+                        tone: "emerald" as const,
+                      }]
+                    : []),
+                ]}
+                nextAction={{
+                  label: result.publicSlug ? "View Public Record" : "View Story",
+                  href: result.publicSlug ? `/s/${result.publicSlug}` : `/startup/${startupId}/documentary`,
+                }}
+                phaseStep={result.recap.month}
+              />
+            )}
+            <div className="game-card p-6 border-2 border-emerald-500/30 hud-corner text-center space-y-4">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/20 border border-emerald-500/20">
                 <TrendingUp className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-bold text-emerald-400 tracking-wider">Simulation Complete</span>
+                <span className="text-xs font-bold text-emerald-400 tracking-wider">{getFinalVerdictLabel()}</span>
               </div>
               <h3 className="text-2xl font-black text-white">{result.outcome}</h3>
               <div className="grid grid-cols-3 gap-3">
@@ -742,7 +813,7 @@ export function OperateClient({
                   <p className="text-lg font-black text-emerald-400">{result.founderScore ?? 0}</p>
                 </div>
                 <div className="p-3 bg-cyan-500/10">
-                  <p className="text-[10px] text-cyan-400/60 uppercase">Months</p>
+                  <p className="text-[10px] text-cyan-400/60 uppercase">Weeks</p>
                   <p className="text-lg font-black text-cyan-400">{nextMonth}</p>
                 </div>
                 <div className="p-3 bg-rose-500/10">

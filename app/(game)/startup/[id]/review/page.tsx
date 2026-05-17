@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/game/ProgressBar";
+import { GameCard } from "@/components/game/GameCard";
+import { StartupRunHud } from "@/components/game/StartupRunHud";
 import { NextBestActionInline } from "@/components/onboarding/NextBestAction";
 import { cn } from "@/lib/utils";
 import {
@@ -56,8 +58,9 @@ export const dynamic = "force-dynamic";
 export default async function VcReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
+  let startup: Awaited<ReturnType<typeof getStartupById>>;
   try {
-    await getStartupById(id);
+    startup = await getStartupById(id);
   } catch {
     notFound();
   }
@@ -89,12 +92,18 @@ export default async function VcReviewPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  const decisionVariant =
+  const decisionVariant: "default" | "destructive" | "secondary" =
     review.decision === "proposal"
-      ? "success"
+      ? "default"
       : review.decision === "reject"
       ? "destructive"
-      : "warning";
+      : "secondary";
+  const decisionClasses =
+    review.decision === "proposal"
+      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+      : review.decision === "reject"
+        ? "border-rose-500/40 bg-rose-500/10 text-rose-300"
+        : "border-amber-500/40 bg-amber-500/10 text-amber-300";
 
   const investableDecisions = ["proposal", "accept"];
   const isInvestable = investableDecisions.includes(review.decision);
@@ -102,7 +111,6 @@ export default async function VcReviewPage({ params }: { params: Promise<{ id: s
   const existingTermSheet = await getTermSheet(id);
   const hasTermSheet = !!existingTermSheet;
 
-  const startup = await getStartupById(id);
   const nextAction = getNextBestActionForStartup(startup);
 
   // Phase 14: Parse committee from rawResponse
@@ -129,19 +137,25 @@ export default async function VcReviewPage({ params }: { params: Promise<{ id: s
   const hasCommittee = !!committee && committee.personaReviews && committee.personaReviews.length > 0;
 
   return (
-    <div className="max-w-7xl mx-auto pt-24 pb-12 px-4 md:px-8 max-w-3xl">
+    <div className="max-w-4xl mx-auto pt-24 pb-12 px-4 md:px-8">
       <div className="mb-6">
         <Link href={`/startup/${id}`} className="text-sm text-white/40 hover:text-white">
           ← Back to Startup
         </Link>
       </div>
 
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">VC Review</h1>
-        <Badge variant={decisionVariant} className="text-sm capitalize">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-[10px] text-violet-400/60 font-bold tracking-[0.35em] uppercase mb-1">VC Review Chamber</p>
+          <h1 className="text-3xl font-black text-white text-glow-cyan">Investor Verdict</h1>
+          <p className="text-sm text-white/40 mt-1">{startup.name} · {startup.sector}</p>
+        </div>
+        <Badge variant={decisionVariant} className={cn("text-sm capitalize", decisionClasses)}>
           {review.decision}
         </Badge>
       </div>
+
+      <StartupRunHud startupId={id} status={startup.status} finalOutcome={startup.finalOutcome} className="mb-6" />
 
       {nextAction && (
         <div className="mb-6">
@@ -150,14 +164,24 @@ export default async function VcReviewPage({ params }: { params: Promise<{ id: s
       )}
 
       <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Overall Score</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-5xl font-bold">{review.overallScore ?? "N/A"}<span className="text-lg text-white/40 font-normal">/100</span></div>
-          </CardContent>
-        </Card>
+        <GameCard glow={review.decision === "proposal" ? "emerald" : review.decision === "reject" ? "rose" : "violet"} className="hud-corner border-violet-500/20">
+          <div className="grid gap-5 md:grid-cols-[180px_1fr] md:items-center">
+            <div className="text-center md:text-left">
+              <p className="text-[10px] text-white/35 font-bold uppercase tracking-widest mb-2">Overall Score</p>
+              <div className="text-6xl font-black text-white tabular-nums">
+                {review.overallScore ?? "N/A"}<span className="text-lg text-white/40 font-normal">/100</span>
+              </div>
+            </div>
+            <div className={cn("border p-4", decisionClasses)}>
+              <p className="text-[10px] font-black uppercase tracking-widest mb-2">Committee Signal</p>
+              <p className="text-sm leading-relaxed text-white/70">
+                {isInvestable
+                  ? "The room is open to a deal. Inspect control, dilution, and runway before accepting capital."
+                  : "The room is not ready to write a check. Improve the pitch, reduce risk, or build more traction."}
+              </p>
+            </div>
+          </div>
+        </GameCard>
 
         <Card>
           <CardHeader>

@@ -13,7 +13,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: "first_pitch", title: "First Pitch", description: "Submit your first pitch deck for review.", icon: "📊", xpReward: 50 },
   { key: "funded_founder", title: "Funded Founder", description: "Accept your first term sheet and close a funding round.", icon: "💰", xpReward: 100 },
   { key: "first_hire", title: "First Hire", description: "Hire your first employee.", icon: "🤝", xpReward: 75 },
-  { key: "survived_12_months", title: "Survived 12 Months", description: "Complete a full 12-month simulation.", icon: "📅", xpReward: 200 },
+  { key: "survived_12_months", title: "Survived 12 Weeks", description: "Complete a full 12-week accelerator run.", icon: "📅", xpReward: 200 },
   { key: "breakout_startup", title: "Breakout Startup", description: "Reach BREAKOUT outcome.", icon: "🚀", xpReward: 500 },
   { key: "efficient_operator", title: "Efficient Operator", description: "Reach a high score with monthly burn under $30k.", icon: "⚡", xpReward: 300 },
   { key: "cockroach_founder", title: "Cockroach Founder", description: "Survive with less than 2 months runway and recover.", icon: "🪳", xpReward: 250 },

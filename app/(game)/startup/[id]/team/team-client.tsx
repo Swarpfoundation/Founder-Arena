@@ -239,7 +239,7 @@ export function TeamClient({ startupId, employees, candidates, capacity, current
               </GameCard>
             ) : candidates.length === 0 ? (
               <GameCard className="p-4">
-                <p className="text-sm text-slate-500">No candidates available this month.</p>
+                <p className="text-sm text-slate-500">No candidates available this sprint.</p>
               </GameCard>
             ) : (
               <div className="space-y-2">

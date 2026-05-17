@@ -1,7 +1,7 @@
 import { FilledAssetBase } from "../base";
 import type { AssetProps } from "../base";
 
-export function AchievementSurvived12MonthsIcon({ className, size = 24, title = "Survived 12 Months" }: AssetProps) {
+export function AchievementSurvived12MonthsIcon({ className, size = 24, title = "Survived 12 Weeks" }: AssetProps) {
   return (
     <FilledAssetBase className={className} size={size} title={title}>
       <circle cx="12" cy="12" r="10" opacity="0.2" />

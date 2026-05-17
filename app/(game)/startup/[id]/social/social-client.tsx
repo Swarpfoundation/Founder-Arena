@@ -17,14 +17,17 @@ import {
 import {
   SocialStateData,
   SocialActionAvailability,
-  SocialMetrics,
   ArenaFeedItem,
   FeedItemSeverity,
   PerformSocialActionResult,
 } from "@/lib/social/types";
 import { performSocialAction } from "@/lib/actions/social";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
+import { RewardPopup } from "@/components/game/RewardPopup";
+import { EventRevealPanel } from "@/components/game/EventRevealPanel";
+import { EventImpactBanner } from "@/components/game/EventImpactBanner";
+import { buildSocialPresentation } from "@/lib/gamefeel/critical-events";
+import { getRunStepLabel, getShortRunStepLabel } from "@/lib/game-time/time-scale";
 
 interface Props {
   startupId: string;
@@ -136,7 +139,7 @@ function FeedItemRow({ item }: { item: ArenaFeedItem }) {
               {categoryIcon[item.category]}
             </span>
             <span className="text-[9px] text-white/20 ml-auto shrink-0">
-              M{item.month}
+              {getShortRunStepLabel(item.month)}
             </span>
           </div>
           <p className="text-xs font-bold text-white/80 mb-0.5">{item.title}</p>
@@ -274,9 +277,38 @@ export function SocialClient({
   }
 
   const feedSorted = [...state.feedItems].sort((a, b) => b.month - a.month);
+  const brandCrisisWarning = metrics.brandRisk > 70
+    ? buildSocialPresentation({
+        startupId,
+        didBackfire: true,
+        brandRiskDelta: metrics.brandRisk,
+        trustDelta: metrics.trust < 50 ? metrics.trust - 50 : undefined,
+      })
+    : null;
+  const lastSocialPresentation = lastResult
+    ? buildSocialPresentation({
+        startupId,
+        didBackfire: lastResult.didBackfire,
+        hypeDelta: lastResult.appliedEffects.hypeDelta,
+        trustDelta: lastResult.appliedEffects.trustDelta,
+        brandRiskDelta: lastResult.appliedEffects.brandRiskDelta,
+        viralMomentumDelta: lastResult.appliedEffects.viralMomentumDelta,
+      })
+    : null;
 
   return (
     <div className="space-y-5">
+      {brandCrisisWarning && !lastResult && (
+        <EventImpactBanner
+          event={{
+            ...brandCrisisWarning,
+            title: "Brand Risk Critical",
+            subtitle: "The public narrative is close to crisis. Damage control should happen before another high-risk post.",
+            primaryCta: { label: "Damage Control", href: `/startup/${startupId}/social` },
+          }}
+        />
+      )}
+
       {/* ── Social Metrics Panel ─────────────────────────────────────────── */}
       <div className="game-card p-5 hud-corner">
         <div className="flex items-center gap-2 mb-4">
@@ -338,7 +370,7 @@ export function SocialClient({
           <div className="mt-4 flex items-center gap-2 border border-amber-500/30 bg-amber-500/5 px-3 py-2">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <p className="text-[11px] text-amber-400">
-              High hype with low trust. Brand risk is compounding each month.
+              High hype with low trust. Brand risk is compounding each sprint.
             </p>
           </div>
         )}
@@ -353,20 +385,20 @@ export function SocialClient({
         )}
       </div>
 
-      {/* ── Monthly Actions ──────────────────────────────────────────────── */}
+      {/* ── Sprint Actions ───────────────────────────────────────────────── */}
       {!isReadOnly && (
         <div className="game-card p-5 hud-corner">
           <div className="flex items-center gap-2 mb-1">
             <MessageSquare className="w-4 h-4 text-violet-400" />
             <h2 className="text-sm font-black text-white tracking-wider uppercase">
-              Monthly Social Action
+              Sprint Media Action
             </h2>
             <span className="ml-auto text-[10px] text-white/30 font-bold tracking-wider">
-              1 PER MONTH
+              1 PER SPRINT
             </span>
           </div>
           <p className="text-[11px] text-white/40 mb-4">
-            Choose one action each month. Effects are applied immediately and
+            Choose one action each sprint. Effects are applied immediately and
             persist into the next simulation.
           </p>
 
@@ -374,7 +406,7 @@ export function SocialClient({
             <div className="flex items-center gap-3 border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <p className="text-xs text-emerald-400 font-bold">
-                Social action taken for Month {state.lastActionMonth}. Results
+                Social action taken for {getRunStepLabel(state.lastActionMonth)}. Results
                 are in the feed below.
               </p>
             </div>
@@ -424,14 +456,25 @@ export function SocialClient({
 
       {/* ── Last Result ──────────────────────────────────────────────────── */}
       {lastResult && (
-        <div
-          className={cn(
-            "p-4 hud-corner border",
-            lastResult.didBackfire
-              ? "border-rose-500/30 bg-rose-500/5"
-              : "border-emerald-500/20 bg-emerald-500/5"
+        <div className="space-y-3">
+          {lastSocialPresentation && (
+            <EventRevealPanel event={lastSocialPresentation} dismissible />
           )}
-        >
+          <RewardPopup
+            title={lastResult.didBackfire ? "Brand Crisis Triggered" : "Arena Post Live"}
+            description={lastResult.didBackfire ? "The market punished the move. Brand risk is now part of the run." : "The feed reacted. Social pressure has been converted into game state."}
+            accent={lastResult.didBackfire ? "rose" : "emerald"}
+            ctaLabel="Review Feed"
+            ctaHref={`/startup/${startupId}/social`}
+          />
+          <div
+            className={cn(
+              "p-4 hud-corner border",
+              lastResult.didBackfire
+                ? "border-rose-500/30 bg-rose-500/5"
+                : "border-emerald-500/20 bg-emerald-500/5"
+            )}
+          >
           <div className="flex items-center gap-2 mb-3">
             {lastResult.didBackfire ? (
               <AlertTriangle className="w-4 h-4 text-rose-400" />
@@ -476,6 +519,7 @@ export function SocialClient({
               ))}
           </div>
         </div>
+        </div>
       )}
 
       {/* ── Arena Feed ───────────────────────────────────────────────────── */}
@@ -491,11 +535,11 @@ export function SocialClient({
         </div>
         {feedSorted.length === 0 ? (
           <div className="py-10 text-center">
-            <p className="text-white/20 text-xs uppercase tracking-wider font-bold mb-1">
-              No signals yet
+            <p className="text-cyan-400/50 text-[10px] uppercase tracking-[0.32em] font-black mb-1">
+              Arena Feed Dormant
             </p>
-            <p className="text-white/30 text-sm">
-              Take a social action to start building your narrative.
+            <p className="text-white/45 text-sm">
+              No public signal has hit the feed this sprint. Take a social action to create hype, trust, backlash, or a rival response.
             </p>
           </div>
         ) : (

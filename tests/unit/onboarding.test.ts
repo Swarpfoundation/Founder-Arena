@@ -152,7 +152,7 @@ describe("next best action logic", () => {
       simulationMonths: [],
       employees: [],
     });
-    expect(action?.label).toBe("Run first month");
+    expect(action?.label).toBe("Run first sprint");
   });
 
   it("returns hire employee when sim exists but no employees", () => {

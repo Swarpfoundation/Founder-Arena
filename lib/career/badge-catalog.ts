@@ -33,11 +33,11 @@ export const BADGE_CATALOG: BadgeDef[] = [
   {
     id: "iron_will",
     title: "Iron Will",
-    description: "Survived the full 12 months and lived to tell the story.",
+    description: "Survived the full 12 Founder Weeks and lived to tell the story.",
     icon: "⚡",
     category: "milestone",
     rarity: "common",
-    requirement: "Survive a full 12-month run",
+    requirement: "Survive a full 12-week accelerator run",
   },
   {
     id: "serial_founder",

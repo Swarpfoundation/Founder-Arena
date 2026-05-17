@@ -10,8 +10,8 @@
 3. Submit for VC Review → scored 0-100 per dimension
 4. Accept Term Sheet    → status: funded
 5. Build Team           → hire roles, set office
-6. Run 12 Monthly Sims  → decisions + events + missions
-7. Check Death / Win    → 5 death triggers, 7 outcomes
+6. Run 12 Founder Weeks → sprint decisions + events + missions
+7. Demo Day Verdict     → 5 death triggers, 7 outcomes
 8. Final Score          → leaderboard, achievements, XP
 ```
 
@@ -152,7 +152,7 @@ draft → pitching → funded → active → completed
 | Lead | 1.8× |
 
 ### Candidate Pool
-- 5 candidates shown per month (deterministic rotation)
+- 5 candidates shown per sprint (deterministic rotation)
 - Each has: name, role, seniority, skill rating, bio, warning flag
 
 ### Hiring Gates
@@ -169,9 +169,11 @@ draft → pitching → funded → active → completed
 
 ---
 
-## 6. Monthly Simulation (12 Months)
+## 6. Sprint Simulation (12 Founder Weeks)
 
-### Monthly Outputs
+Founder Arena uses weekly/sprint gameplay pacing while preserving monthly financial accounting for burn, MRR, salaries, office costs, and runway.
+
+### Sprint Outputs
 - Cash start / end
 - Burn rate
 - Revenue
@@ -184,7 +186,7 @@ draft → pitching → funded → active → completed
 - User growth
 - AI board summary
 
-### Monthly Decisions (13)
+### Sprint Decisions (13)
 | Decision | One-time Cost | Burn Delta | Key Effect |
 |---|---|---|---|
 | Hire Engineering Contractor | $15K | +$15K | +12 product |
@@ -201,13 +203,13 @@ draft → pitching → funded → active → completed
 | Fundraising Prep | $5K | +$5K | +8 investor score |
 
 ### Decision Gates
-- Month 1: Launch Beta and Enterprise Push unavailable
+- Week 1: Launch Beta and Enterprise Push unavailable
 - Launch Beta requires product ≥ 40%
 - Enterprise Sales Push requires product ≥ 50%
 
 ---
 
-## 7. Monthly Events
+## 7. Sprint Events
 
 ### Event Categories (11)
 1. **Market** — market correction, sector boom, supply chain disruption
@@ -240,7 +242,7 @@ Product · Engineering · AI Model · Compliance · Security · Sales · Marketi
 - Required roles, seniority, and headcount
 - Upfront cost + monthly cost delta during mission
 - Complexity (1–10) + Risk (1–10)
-- Duration (months)
+- Duration (months; financial/project accounting unit)
 - On-success and on-failure stat deltas
 
 ---
@@ -291,7 +293,7 @@ VC climate · inflation pressure · geopolitical risk · consumer spending · en
 | No runway | Runway ≤ 0 months |
 | Catastrophic risk | Risk score ≥ 95 |
 | Investor collapse | Investor score ≤ 10 AND cash < 2× burn |
-| No traction | Month 9+ AND product < 20% AND revenue < $5K |
+| No traction | Week 9+ AND product < 20% AND revenue < $5K |
 
 ---
 
@@ -304,14 +306,16 @@ VC climate · inflation pressure · geopolitical risk · consumer spending · en
 | ACQUISITION_TARGET | Valuation > $3M, low revenue | 2.0× |
 | SEED_READY | Revenue > $20K + product ≥ 70% | 1.8× |
 | SMALL_PROFITABLE | Revenue > $0 + cash > $0 | 1.5× |
-| ZOMBIE | Survived 12 months, weak metrics | 0.5× |
-| DEAD | Died before month 12 | 0× |
+| ZOMBIE | Survived 12 Founder Weeks, weak metrics | 0.5× |
+| DEAD | Died before Demo Day | 0× |
 
 ### Score Formula
 ```
 base  = valuation/10K + revenue/1K + monthsSurvived × 50
 final = base × outcomeMultiplier
 ```
+
+`monthsSurvived` is the internal compatibility field; the UI presents it as Founder Weeks survived.
 
 ---
 
@@ -320,7 +324,7 @@ final = base × outcomeMultiplier
 ### Leaderboard
 - Categories: overall + per sector
 - Current season: `beta-season-1`
-- Entries: score, valuation, revenue, survival months, outcome
+- Entries: score, valuation, revenue, Founder Weeks survived, outcome
 
 ### Sample Achievements (50+ total)
 | Achievement | Trigger | XP |
@@ -328,7 +332,7 @@ final = base × outcomeMultiplier
 | First Pitch | Submit first pitch | 50 |
 | Funded Founder | Accept term sheet | 100 |
 | First Hire | Hire first employee | 75 |
-| Survived 12 Months | Complete full simulation | 200 |
+| Survived 12 Weeks | Complete full 12-week accelerator run | 200 |
 | Breakout Startup | Reach BREAKOUT outcome | 500 |
 | Successful Exit | Accept acquisition | 600 |
 | Unicorn Dream | Reach $10M+ valuation | 350 |
@@ -366,11 +370,11 @@ final = base × outcomeMultiplier
 | Sectors | 10 |
 | Regions | 7 |
 | Subscription tiers | 3 |
-| Simulation duration | 12 months |
+| Simulation duration | 12 Founder Weeks |
 | Employee roles | 12 |
 | Seniority levels | 4 |
 | Office types | 4 |
-| Monthly decisions | 13 |
+| Sprint decisions | 13 |
 | Event categories | 11 |
 | Mission categories | 14 |
 | Startup classifications | 16 |
@@ -381,6 +385,16 @@ final = base × outcomeMultiplier
 | Leaderboard multipliers | 7 |
 | Achievements | 50+ |
 | Market scenarios | 7+ |
-| Candidate pool per month | 5 |
+| Candidate pool per sprint | 5 |
 | Max startups (Free) | 3 |
 | Max startups (Pro/Max) | Unlimited |
+
+### Founder Week Phases
+| Weeks | Phase | Player-Facing Tone |
+|---|---|---|
+| 1-3 | Launch Signal | Find your first signal before the arena notices. |
+| 4-6 | Market Proof | Proof compounds or the market moves on. |
+| 7-9 | Survive or Scale | Scale the signal or get crushed by burn. |
+| 10-12 | Demo Day Runway | Every choice now feeds the Demo Day Verdict. |
+
+The sprint phase layer is display-only. Internal month fields and monthly finance units remain unchanged for compatibility and accounting realism.

@@ -56,7 +56,7 @@ function buildShareText(
     ``,
     `${startupName} — ${sector} | ${region}`,
     `Outcome: ${outcomeLabel}`,
-    `Score: ${finalScore.toLocaleString()} | Valuation: ${valStr} | ${months} months`,
+    `Score: ${finalScore.toLocaleString()} | Valuation: ${valStr} | ${months} Founder Weeks`,
     ...(playstyleLabel ? [`Strategy: ${playstyleLabel}`] : []),
     ``,
     `"${tagline}"`,

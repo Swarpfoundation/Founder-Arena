@@ -20,7 +20,7 @@ const BETA_CHALLENGES: SeasonChallenge[] = [
   {
     id: "cockroach_survival",
     title: "Cockroach Survival",
-    description: "Survive all 12 months without dying. No matter what the market throws at you.",
+    description: "Survive all 12 Founder Weeks without dying. No matter what the market throws at you.",
     category: "survival",
     requirement: { type: "min_survival_months", value: 12 },
     reward: "+150 bonus score",

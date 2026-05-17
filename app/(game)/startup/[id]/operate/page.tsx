@@ -11,7 +11,22 @@ import { StatusBadge } from "@/components/game/StatusBadge";
 import { SectionHeader } from "@/components/game/SectionHeader";
 import { OutcomeBadge } from "@/components/game/OutcomeBadge";
 import { MetricPanel } from "@/components/game/MetricPanel";
+import { GameCeremonyModal } from "@/components/game/GameCeremonyModal";
+import { RewardPopup } from "@/components/game/RewardPopup";
+import { StartupRunHud } from "@/components/game/StartupRunHud";
+import { SprintPhaseBanner } from "@/components/game/SprintPhaseBanner";
+import { EventImpactBanner } from "@/components/game/EventImpactBanner";
+import { PageReveal } from "@/components/game/PageReveal";
+import { MonthOneBriefing } from "@/components/game/MonthOneBriefing";
 import { cn } from "@/lib/utils";
+import { buildFinalResultCtas, getOutcomeCeremony } from "@/lib/gamefeel/ceremony";
+import { buildDeathWarningPresentations } from "@/lib/gamefeel/critical-events";
+import {
+  getDemoDayLabel,
+  getFinalVerdictLabel,
+  getRunStepLabel,
+  getShortRunStepLabel,
+} from "@/lib/game-time/time-scale";
 import { ArrowLeft } from "lucide-react";
 import { MetricRevenueIcon } from "@/components/assets";
 
@@ -29,6 +44,23 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
 
   const startup = simState.startup;
   const history = startup.simulationMonths;
+  const currentBurn = simState.trueMonthlyBurn ?? startup.monthlyBurn;
+  const nextStep = simState.currentMonth + 1;
+  const displayStep =
+    startup.status === "completed" || startup.status === "dead"
+      ? Math.max(1, Math.min(12, history.length || 12))
+      : Math.max(1, Math.min(12, nextStep));
+  const deathWarnings = ["funded", "active"].includes(startup.status)
+    ? buildDeathWarningPresentations({
+        startupId: id,
+        cash: startup.cash,
+        monthlyBurn: currentBurn,
+        riskScore: startup.riskScore,
+        investorScore: startup.investorScore,
+        revenue: startup.revenue,
+        currentMonth: simState.currentMonth,
+      })
+    : [];
 
   // If not funded, show locked state
   if (startup.status !== "funded" && startup.status !== "active" && startup.status !== "dead" && startup.status !== "completed") {
@@ -67,7 +99,7 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
   const totalUsers = history.reduce((sum, m) => sum + m.userGrowth, 0) + 100;
 
   return (
-    <div>
+    <PageReveal>
       <div className="max-w-5xl mx-auto pt-24 pb-12 px-4 md:px-8">
         <div className="mb-6">
           <Link
@@ -84,18 +116,42 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
           <p className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase mb-1">Operating Center</p>
           <h1 className="text-2xl font-black text-white tracking-tight">
             {startup.status === "dead"
-              ? "Final Month"
+              ? getFinalVerdictLabel()
               : startup.status === "completed"
-              ? "Month 12"
-              : `Month ${simState.currentMonth + 1}`}
+              ? getDemoDayLabel()
+              : getRunStepLabel(nextStep)}
           </h1>
         </div>
+
+        <StartupRunHud
+          startupId={id}
+          status={startup.status}
+          finalOutcome={startup.finalOutcome}
+          currentStep={displayStep}
+          hasTeam={startup.employees.some((employee) => employee.status === "active")}
+          className="mb-8"
+        />
+
+        <SprintPhaseBanner
+          step={displayStep}
+          status={startup.status}
+          hasTeam={startup.employees.some((employee) => employee.status === "active")}
+          className="mb-8"
+        />
+
+        <MonthOneBriefing
+          startupId={id}
+          status={startup.status}
+          monthsRun={history.length}
+          teamSize={startup.employees.filter((employee) => employee.status === "active").length}
+          className="mb-8"
+        />
 
         {/* Top Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
           {[
             { label: "CASH", value: `$${(startup.cash / 1000).toFixed(0)}K`, color: "text-cyan-400", border: "border-cyan-500/20" },
-            { label: "BURN", value: `$${((simState.trueMonthlyBurn ?? startup.monthlyBurn) / 1000).toFixed(0)}K/mo`, color: "text-rose-400", border: "border-rose-500/20" },
+            { label: "BURN", value: `$${(currentBurn / 1000).toFixed(0)}K/mo`, color: "text-rose-400", border: "border-rose-500/20" },
             { label: "USERS", value: totalUsers.toLocaleString(), color: "text-emerald-400", border: "border-emerald-500/20" },
             { label: "MORALE", value: `${startup.teamMorale}%`, color: "text-amber-400", border: "border-amber-500/20" },
           ].map((stat) => (
@@ -109,6 +165,14 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
           ))}
         </div>
 
+        {deathWarnings.length > 0 && (
+          <div className="mb-8 space-y-3">
+            {deathWarnings.map((event) => (
+              <EventImpactBanner key={event.displayKey ?? event.title} event={event} />
+            ))}
+          </div>
+        )}
+
         {/* Operate Client */}
         {(startup.status === "funded" || startup.status === "active") && (
           <OperateClient
@@ -118,7 +182,7 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
             monthlyEvent={simState.monthlyEvent ?? undefined}
             eventChoices={simState.eventChoices}
             cash={startup.cash}
-            monthlyBurn={simState.trueMonthlyBurn ?? startup.monthlyBurn}
+            monthlyBurn={currentBurn}
             revenue={startup.revenue}
             teamMorale={startup.teamMorale}
             activeMission={simState.activeMission}
@@ -133,7 +197,7 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
         {/* History / Mission Log */}
         {history.length > 0 && (
           <div className="mt-12">
-            <h3 className="text-sm font-bold text-white mb-3 tracking-wider uppercase">Monthly Mission Log</h3>
+            <h3 className="text-sm font-bold text-white mb-3 tracking-wider uppercase">Sprint Mission Log</h3>
             <div className="space-y-2">
               {history.map((month, i) => {
                 const missionMeta = (month.metadata as Record<string, unknown> | null)?.missionResult as Record<string, unknown> | undefined;
@@ -148,7 +212,7 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
                     )}
                   >
                     <div className="w-10 h-10 bg-slate-800 flex items-center justify-center border border-slate-700 flex-shrink-0">
-                      <span className="text-xs font-black text-cyan-400">M{month.monthNumber}</span>
+                      <span className="text-xs font-black text-cyan-400">{getShortRunStepLabel(month.monthNumber)}</span>
                     </div>
                     <div className="flex-1 grid grid-cols-3 gap-2 text-xs">
                       <div>
@@ -197,7 +261,7 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
           </div>
         )}
       </div>
-    </div>
+    </PageReveal>
   );
 }
 
@@ -246,10 +310,70 @@ async function FinalOutcome({ startupId }: { startupId: string }) {
   const outcome = classifyFinalOutcome(state, monthsSurvived, history);
 
   const isDead = startup.status === "dead";
+  const profile = getOutcomeCeremony(outcome.outcome);
+  const analysis = startup.aiAnalysis as Record<string, unknown> | null;
+  const strategyArchetype = analysis?.strategyArchetype as { dominantPlaystyle?: string | null } | undefined;
+  const leaderboardMeta = entry?.metadata as Record<string, unknown> | null;
+  const rivalsSummary = typeof leaderboardMeta?.rivalsSummary === "string" ? leaderboardMeta.rivalsSummary : null;
+  const boardroomSummary = typeof leaderboardMeta?.boardroomSummary === "string" ? leaderboardMeta.boardroomSummary : null;
+  const ctas = buildFinalResultCtas({
+    startupId,
+    publicSlug: startup.publicSlug,
+    hasLeaderboardEntry: !!entry,
+    isDead,
+  });
+  const unlocks = [
+    "Founder Documentary",
+    "Career Record Updated",
+    entry ? "Arena Ranking Entered" : null,
+    strategyArchetype?.dominantPlaystyle ? `${strategyArchetype.dominantPlaystyle.replace(/_/g, " ")} Strategy` : null,
+  ].filter((x): x is string => !!x);
 
   return (
-    <GameCard glow={isDead ? "rose" : "violet"} className="hud-corner">
-      <SectionHeader title="Final Report" accent="violet" className="mb-4" />
+    <div className="space-y-6">
+      <GameCeremonyModal
+        title={profile.title}
+        subtitle={profile.subtitle}
+        tone={profile.tone}
+        accent={profile.accent}
+        narrative={outcome.reason}
+        ceremonyKey={`final:${startupId}:${outcome.outcome}:${outcome.founderScore}`}
+        enableCelebration={profile.isPositive}
+        stats={[
+          { label: "Final Score", value: outcome.founderScore, accent: "amber" },
+          { label: "Valuation", value: Math.round(startup.valuation / 1000), prefix: "$", suffix: "K", accent: "violet" },
+          { label: "Revenue", value: Math.round(startup.revenue / 1000), prefix: "$", suffix: "K/mo", accent: "emerald" },
+          { label: "Weeks", value: monthsSurvived, suffix: "/12", accent: "cyan" },
+        ]}
+        unlocks={unlocks}
+        ctas={ctas}
+      />
+
+      {(rivalsSummary || boardroomSummary) && (
+        <div className="grid gap-3 md:grid-cols-2">
+          {rivalsSummary && (
+            <RewardPopup
+              title="Rival Legacy Logged"
+              description={rivalsSummary}
+              accent="rose"
+              ctaLabel="View Rivals"
+              ctaHref={`/startup/${startupId}/rivals`}
+            />
+          )}
+          {boardroomSummary && (
+            <RewardPopup
+              title="Boardroom Record Sealed"
+              description={boardroomSummary}
+              accent="amber"
+              ctaLabel="View Boardroom"
+              ctaHref={`/startup/${startupId}/boardroom`}
+            />
+          )}
+        </div>
+      )}
+
+      <GameCard glow={isDead ? "rose" : "violet"} className="hud-corner">
+      <SectionHeader title={getFinalVerdictLabel()} accent="violet" className="mb-4" />
 
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <OutcomeBadge outcome={outcome.outcome} />
@@ -258,7 +382,7 @@ async function FinalOutcome({ startupId }: { startupId: string }) {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <MetricPanel label="Outcome" value={outcome.outcome} />
-        <MetricPanel label="Survived" value={`${monthsSurvived} months`} />
+        <MetricPanel label="Survived" value={`${monthsSurvived} Founder Weeks`} />
         <MetricPanel label="Final Valuation" value={`$${startup.valuation.toLocaleString()}`} />
         <MetricPanel label="Final Score" value={outcome.founderScore} />
       </div>
@@ -358,6 +482,7 @@ async function FinalOutcome({ startupId }: { startupId: string }) {
           </div>
         </Link>
       </div>
-    </GameCard>
+      </GameCard>
+    </div>
   );
 }

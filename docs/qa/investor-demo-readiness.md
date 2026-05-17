@@ -83,7 +83,7 @@ All of the above, plus:
 
 ## Known Limitations
 
-- **Run creation takes time.** A full 12-month run requires multiple monthly simulation clicks. For demo purposes, pre-create a completed run.
+- **Run creation takes time.** A full 12-week accelerator run requires multiple sprint simulation clicks. For demo purposes, pre-create a completed run.
 - **Boardroom events are threshold-based.** They don't fire on demand. Pre-run scenarios or show the clear-state explanation panel.
 - **Documentary requires a finalized run.** Prepare a completed startup ahead of the demo.
 - **Leaderboard is empty by default.** Complete at least one run before showing the leaderboard.
@@ -109,7 +109,7 @@ Before any investor or public demo, confirm the following statements are NOT mad
 
 | System | Status | Notes |
 |--------|--------|-------|
-| Simulation Engine | Live | Deterministic, 12-month roguelike |
+| Simulation Engine | Live | Deterministic, 12-week accelerator roguelike |
 | Arena Feed / Social | Live | Simulated social pressure |
 | Rival Founders | Live | Sector-matched AI rivals |
 | Strategy Stack | Live | Emergent archetype from decisions |

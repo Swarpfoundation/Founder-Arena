@@ -5,6 +5,12 @@ import { getOrCreateFounderProfile } from "@/lib/game/founder-progression";
 import { getOnboardingProgress } from "@/lib/onboarding/progress";
 import { db } from "@/lib/db";
 import { requireCurrentUser } from "@/lib/auth-helpers";
+import {
+  getDemoDayCountdown,
+  getRunPhaseLabel,
+  getShortRunStepLabel,
+  getSprintPressureLevel,
+} from "@/lib/game-time/time-scale";
 import { StatusBadge } from "@/components/game/StatusBadge";
 import {
   Plus,
@@ -71,6 +77,14 @@ function TacticalCard({ startup }: { startup: Awaited<ReturnType<typeof getUserS
   const simMonths = startup.simulationMonths.length;
   const isOperating = startup.status === "funded" || startup.status === "active";
   const isComplete = startup.status === "completed" || startup.status === "dead";
+  const runStep = isComplete ? Math.max(1, Math.min(12, simMonths || 12)) : Math.max(1, Math.min(12, simMonths + 1));
+  const pressure = getSprintPressureLevel(runStep);
+  const pressureText =
+    isComplete ? "Finalized" :
+    pressure === "demo_day" ? "Demo Day Runway" :
+    pressure === "dangerous" ? "Pressure Rising" :
+    pressure === "rising" ? "Market Proof" :
+    "Early Signal";
   const runway = startup.monthlyBurn > 0 ? Math.round(startup.cash / startup.monthlyBurn) : 99;
 
   return (
@@ -131,8 +145,14 @@ function TacticalCard({ startup }: { startup: Awaited<ReturnType<typeof getUserS
               </div>
             </div>
             {isOperating && (
-              <div className="text-[10px] text-white/40">
-                Month {simMonths} of 12 • {startup.employees.filter(e => e.status === "active").length} team members
+              <div className="space-y-1 text-[10px] text-white/40">
+                <div>
+                  {getShortRunStepLabel(runStep)} of 12 • {getRunPhaseLabel(runStep)} • {startup.employees.filter(e => e.status === "active").length} team members
+                </div>
+                <div className="flex items-center justify-between gap-2 border border-white/5 bg-white/[0.03] px-2 py-1">
+                  <span className="font-bold uppercase tracking-wider text-white/35">{pressureText}</span>
+                  <span className={pressure === "demo_day" ? "text-rose-400" : "text-cyan-400"}>{getDemoDayCountdown(runStep)}</span>
+                </div>
               </div>
             )}
             {isComplete && (

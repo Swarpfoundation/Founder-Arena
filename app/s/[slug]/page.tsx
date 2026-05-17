@@ -117,7 +117,7 @@ export default async function PublicStartupPage({ params }: { params: Promise<{ 
           <MetricPanel label="Final Score" value={startup.finalScore ?? 0} icon={<Trophy className="w-4 h-4" />} />
           <MetricPanel label="Valuation" value={`$${startup.valuation.toLocaleString()}`} icon={<TrendingUp className="w-4 h-4" />} />
           <MetricPanel label="Revenue" value={`$${startup.revenue.toLocaleString()}`} icon={<DollarSign className="w-4 h-4" />} />
-          <MetricPanel label="Months" value={startup.monthsSurvived} icon={<Calendar className="w-4 h-4" />} />
+          <MetricPanel label="Weeks" value={startup.monthsSurvived} icon={<Calendar className="w-4 h-4" />} />
         </div>
 
         {/* Story Card */}
@@ -250,7 +250,7 @@ export default async function PublicStartupPage({ params }: { params: Promise<{ 
                 <div className="text-lg font-bold capitalize">{startup.leaderboardCategory ?? "overall"}</div>
               </div>
               <div className="text-center sm:text-left">
-                <div className="text-xs text-white/40 uppercase tracking-wider">Months</div>
+                <div className="text-xs text-white/40 uppercase tracking-wider">Weeks</div>
                 <div className="text-lg font-bold">{startup.monthsSurvived}</div>
               </div>
             </div>

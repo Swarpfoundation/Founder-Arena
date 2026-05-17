@@ -44,7 +44,7 @@ The **Dominant Playstyle** is your highest-progress stack at ≥50. Up to 2 **Se
 
 Signals accumulate silently from your choices throughout the game:
 
-### Monthly Decisions
+### Sprint Decisions
 | Decision | Playstyle Signals |
 |---|---|
 | Product Focus | product_led (+10) |

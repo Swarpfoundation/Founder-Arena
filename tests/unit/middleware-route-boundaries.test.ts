@@ -16,6 +16,7 @@ const PUBLIC_PATHS = new Set([
   "/leaderboard",
   "/graveyard",
   "/how-to-play",
+  "/demo",
   "/api/health",
   "/api/webhooks/stripe",
   "/api/market/snapshot",
@@ -48,6 +49,9 @@ describe("middleware PUBLIC_PATHS exact matches", () => {
   });
   it("allows /api/market/snapshot (read-only public data)", () => {
     expect(isPublicPath("/api/market/snapshot")).toBe(true);
+  });
+  it("allows /demo (read-only presenter guide)", () => {
+    expect(isPublicPath("/demo")).toBe(true);
   });
 });
 

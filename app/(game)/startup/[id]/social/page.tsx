@@ -3,6 +3,11 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSocialState } from "@/lib/actions/social";
 import { SocialClient } from "./social-client";
+import { StartupRunHud } from "@/components/game/StartupRunHud";
+import { EventImpactBanner } from "@/components/game/EventImpactBanner";
+import { PageReveal } from "@/components/game/PageReveal";
+import { getRunStepLabel } from "@/lib/game-time/time-scale";
+import { getRouteSprintAtmosphere } from "@/lib/game-time/route-atmosphere";
 
 export const dynamic = "force-dynamic";
 
@@ -63,9 +68,10 @@ export default async function SocialPage({
       </div>
     );
   }
+  const currentStep = Math.max(1, Math.min(12, data.currentMonth || 1));
 
   return (
-    <div className="max-w-5xl mx-auto pt-24 pb-12 px-4 md:px-8 space-y-5">
+    <PageReveal className="max-w-5xl mx-auto pt-24 pb-12 px-4 md:px-8 space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href={`/startup/${id}`}>
@@ -83,10 +89,12 @@ export default async function SocialPage({
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[10px] font-bold px-3 py-1 bg-violet-500/10 border border-violet-500/30 text-violet-400 uppercase tracking-wider">
-            Month {data.currentMonth}
+            {getRunStepLabel(data.currentMonth)}
           </span>
         </div>
       </div>
+
+      <EventImpactBanner event={getRouteSprintAtmosphere("social", currentStep)} />
 
       <SocialClient
         startupId={id}
@@ -101,6 +109,12 @@ export default async function SocialPage({
         riskScore={data.riskScore}
         sector={data.sector}
       />
-    </div>
+
+      <StartupRunHud
+        startupId={id}
+        status={data.startupStatus}
+        currentStep={currentStep}
+      />
+    </PageReveal>
   );
 }

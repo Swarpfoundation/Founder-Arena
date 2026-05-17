@@ -3,6 +3,15 @@ import {
   LOCKED_STATES,
   DEMO_CHECKLIST_STEPS,
 } from "@/lib/demo/locked-states";
+import {
+  buildDemoShowcaseLinks,
+  buildEmptyDemoShowcaseState,
+  buildPresenterChecklist,
+  DEMO_FOUNDER_PUBLIC_SLUG,
+  DEMO_SCENARIOS,
+  getDemoPublicSlugs,
+  getDemoScenarioIds,
+} from "@/lib/demo/showcase-data";
 
 // ─── LOCKED_STATES ────────────────────────────────────────────────────────────
 
@@ -142,5 +151,90 @@ describe("DEMO_CHECKLIST_STEPS", () => {
         expect(step.requiresStatus.length).toBeGreaterThan(0);
       }
     }
+  });
+});
+
+// ─── DEMO SHOWCASE DATA ──────────────────────────────────────────────────────
+
+describe("demo showcase data", () => {
+  it("defines active, mid-run, finalized, and dead scenarios with deterministic IDs", () => {
+    expect(DEMO_SCENARIOS.map((scenario) => scenario.kind)).toEqual([
+      "active",
+      "midRun",
+      "finalized",
+      "dead",
+    ]);
+
+    expect(getDemoScenarioIds()).toEqual([
+      "demo-active-month-one",
+      "demo-mid-run",
+      "demo-finalized-breakout",
+      "demo-dead-run",
+    ]);
+  });
+
+  it("has public slugs only for finalized public-safe scenarios", () => {
+    expect(getDemoPublicSlugs()).toEqual([
+      "demo-civicgraph-breakout",
+      "demo-fablepay-dead",
+    ]);
+  });
+
+  it("builds fallback links when no seeded data exists", () => {
+    const state = buildEmptyDemoShowcaseState();
+    const links = buildDemoShowcaseLinks(state);
+
+    expect(state.seedDetected).toBe(false);
+    expect(links.find((link) => link.key === "active")?.href).toBe("/startup/new");
+    expect(links.find((link) => link.key === "mid-run")?.available).toBe(false);
+    expect(links.find((link) => link.key === "leaderboard")?.href).toBe("/leaderboard");
+  });
+
+  it("builds seeded showcase links without private pitch fields", () => {
+    const state = buildEmptyDemoShowcaseState();
+    const seededState = {
+      ...state,
+      seedDetected: true,
+      founderProfileExists: true,
+      scenarios: state.scenarios.map((scenario) => ({
+        ...scenario,
+        exists: true,
+        status: scenario.kind === "dead" ? "dead" : scenario.kind === "finalized" ? "completed" : "active",
+        finalOutcome: scenario.kind === "finalized" ? "BREAKOUT" : scenario.kind === "dead" ? "DEAD" : null,
+      })),
+    };
+
+    const links = buildDemoShowcaseLinks(seededState);
+    const hrefs = links.map((link) => link.href);
+
+    expect(hrefs).toContain("/startup/demo-active-month-one");
+    expect(hrefs).toContain("/startup/demo-mid-run/operate");
+    expect(hrefs).toContain("/s/demo-civicgraph-breakout");
+    expect(hrefs).toContain(`/f/${DEMO_FOUNDER_PUBLIC_SLUG}`);
+    expect(JSON.stringify(links).toLowerCase()).not.toContain("pitchdeck");
+    expect(JSON.stringify(links).toLowerCase()).not.toContain("problem");
+    expect(JSON.stringify(links).toLowerCase()).not.toContain("solution");
+  });
+
+  it("presenter checklist includes required route steps and guardrails", () => {
+    const checklist = buildPresenterChecklist();
+    const ids = checklist.map((step) => step.id);
+
+    expect(ids).toEqual([
+      "home",
+      "deployment-bay",
+      "active-startup",
+      "operate",
+      "social",
+      "rivals",
+      "strategy",
+      "boardroom",
+      "documentary",
+      "career",
+      "leaderboard",
+    ]);
+    expect(checklist.every((step) => step.route.startsWith("/"))).toBe(true);
+    expect(checklist.some((step) => step.doNotClaim?.includes("real social media"))).toBe(true);
+    expect(checklist.some((step) => step.doNotClaim?.includes("live multiplayer"))).toBe(true);
   });
 });

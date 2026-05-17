@@ -53,6 +53,7 @@ import {
 } from "@/lib/boardroom/boardroom-engine";
 import { buildBoardroomTriggerFeedItem } from "@/lib/boardroom/boardroom-feed";
 import type { BoardroomTriggerContext } from "@/lib/boardroom/types";
+import { computeStatDeltas } from "@/lib/gamefeel/ceremony";
 
 export async function getSimulationState(startupId: string) {
   const user = await requireCurrentUser();
@@ -727,9 +728,11 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
   const triggeredPressureType = selectBoardroomTrigger(boardroomCtx);
   let updatedBoardroomState = currentBoardroomState;
   let boardroomFeedItems: typeof updatedFeedWithRivals = [];
+  let triggeredBoardroomEventTitle: string | null = null;
 
   if (triggeredPressureType) {
     const newEvent = generateBoardroomEvent(boardroomCtx, triggeredPressureType);
+    triggeredBoardroomEventTitle = newEvent.title;
     updatedBoardroomState = applyTriggerToState(currentBoardroomState, newEvent);
     const triggerFeedItem = buildBoardroomTriggerFeedItem(newEvent);
     boardroomFeedItems = [{
@@ -918,6 +921,53 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
   // Must happen before the early-return below so it is never skipped.
   await recordUsage(user.id, "monthlySimulation", 1);
 
+  const beforeRunway = Math.floor(state.cash / Math.max(state.monthlyBurn, 1));
+  const topRivalMove = rivalResult.rivalMoves[0] ?? null;
+  const activeSynergyTitles = strategyState.activeSynergies.map((s) => s.title).slice(0, 3);
+  const monthRecap = {
+    month: nextMonthNumber,
+    deltas: computeStatDeltas([
+      { id: "cash", label: "Cash", before: state.cash, after: result.cashEnd, format: "money", positiveDirection: "up" },
+      { id: "runway", label: "Runway", before: beforeRunway, after: result.runwayMonths, format: "months", positiveDirection: "up" },
+      { id: "burn", label: "Burn", before: state.monthlyBurn, after: result.burnRate, format: "money", positiveDirection: "down" },
+      { id: "revenue", label: "Revenue", before: state.revenue, after: result.revenue, format: "money", positiveDirection: "up" },
+      { id: "product", label: "Product", before: state.productProgress, after: result.productProgressAfter, format: "percent", positiveDirection: "up" },
+      { id: "investor", label: "Investor", before: state.investorScore, after: result.investorScoreAfter, format: "number", positiveDirection: "up" },
+      { id: "risk", label: "Risk", before: state.riskScore, after: result.riskScoreAfter, format: "number", positiveDirection: "down" },
+      { id: "trust", label: "Trust", before: currentSocialMetrics.trust, after: finalSocialMetricsWithStrategy.trust, format: "number", positiveDirection: "up" },
+      { id: "brand", label: "Brand Risk", before: currentSocialMetrics.brandRisk, after: finalSocialMetricsWithStrategy.brandRisk, format: "number", positiveDirection: "down" },
+    ]),
+    highlights: [
+      resolvedEvent
+        ? { label: "Event", text: `${resolvedEvent.title}: ${resolvedEvent.narrative}`, tone: resolvedEvent.severity === "critical" ? "rose" : "amber" }
+        : result.eventTitle
+          ? { label: "Event", text: `${result.eventTitle}: ${result.eventSummary}`, tone: "amber" }
+          : null,
+      topRivalMove
+        ? { label: "Rival Move", text: `${topRivalMove.rivalName}: ${topRivalMove.title}`, tone: topRivalMove.severity === "critical" ? "rose" : "violet" }
+        : null,
+      triggeredBoardroomEventTitle
+        ? { label: "Boardroom", text: `Boardroom event triggered: ${triggeredBoardroomEventTitle}`, tone: "rose" }
+        : null,
+      missionMonthResult?.missionTitle
+        ? { label: "Mission", text: `${String(missionMonthResult.missionTitle)} moved from ${missionMonthResult.progressBefore}% to ${missionMonthResult.progressAfter}%.`, tone: missionMonthResult.missionOutcome === "completed" ? "emerald" : "violet" }
+        : null,
+      strategyState.dominantPlaystyle
+        ? { label: "Strategy", text: `Dominant playstyle: ${String(strategyState.dominantPlaystyle).replace(/_/g, " ")}${activeSynergyTitles.length > 0 ? ` with ${activeSynergyTitles.join(", ")}` : ""}.`, tone: "amber" }
+        : null,
+      newPassiveFeedItems[0]
+        ? { label: "Arena Feed", text: newPassiveFeedItems[0].title, tone: newPassiveFeedItems[0].severity === "critical" ? "rose" : "cyan" }
+        : null,
+    ].filter((item): item is { label: string; text: string; tone: "cyan" | "amber" | "rose" | "emerald" | "violet" } => item !== null),
+    nextAction: triggeredBoardroomEventTitle
+      ? { label: "Answer Boardroom", href: `/startup/${startupId}/boardroom` }
+      : topRivalMove
+        ? { label: "Check Rivals", href: `/startup/${startupId}/rivals` }
+        : activeSynergyTitles.length > 0
+          ? { label: "Inspect Strategy", href: `/startup/${startupId}/strategy` }
+          : { label: "Continue Operating", href: `/startup/${startupId}/operate` },
+  };
+
   // If final, run centralized finalization
   if (deathCheck.dead || nextMonthNumber >= 12) {
     const finalResult = await finalizeStartup(startupId);
@@ -936,6 +986,7 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
         publicSlug: finalResult.publicSlug,
         achievementsUnlocked: finalResult.achievementsUnlocked,
         xpGained: finalResult.xpGained,
+        recap: monthRecap,
       };
     }
   }
@@ -944,5 +995,5 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
   revalidatePath(`/startup/${startupId}/social`);
   revalidatePath(`/startup/${startupId}/rivals`);
   revalidatePath(`/startup/${startupId}/strategy`);
-  return { success: true };
+  return { success: true, recap: monthRecap };
 }

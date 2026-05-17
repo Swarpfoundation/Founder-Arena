@@ -2,7 +2,7 @@
 
 ## Overview
 
-Boardroom Battles adds dramatic investor and boardroom pressure moments to every 12-month run. When key game metrics hit critical thresholds, a pressure event fires — surfacing an open event on the `/startup/[id]/boardroom` route with 3–5 response options, each with distinct tradeoffs.
+Boardroom Battles adds dramatic investor and boardroom pressure moments to every 12-week accelerator run. When key game metrics hit critical thresholds, a pressure event fires — surfacing an open event on the `/startup/[id]/boardroom` route with 3–5 response options, each with distinct tradeoffs.
 
 One open event at a time. Effects apply immediately upon player response. No LLM calls. No external APIs. Fully deterministic.
 
@@ -87,7 +87,7 @@ All fields optional. Applied to startup state and boardroomState on resolution.
 
 ## Trigger Logic
 
-Triggers are evaluated at the end of each monthly simulation, after social/rival/strategy layers.
+Triggers are evaluated at the end of each sprint simulation, after social/rival/strategy layers.
 
 **Guards:**
 - One open event at a time (no double-trigger)
@@ -130,7 +130,7 @@ Triggers are evaluated at the end of each monthly simulation, after social/rival
 
 ## Integration Points
 
-### Monthly Simulation Flow
+### Sprint Simulation Flow
 
 Added after the strategy layer, before the death check, in `runMonthlySimulationAction`:
 

@@ -245,7 +245,7 @@ export default async function ProfilePage() {
             <Award className="w-8 h-8 text-white/40 mx-auto mb-3" />
             <h3 className="text-sm font-semibold text-white mb-1">No achievements yet</h3>
             <p className="text-xs text-white/40 max-w-sm mx-auto">
-              Complete startups, submit pitches, hire employees, and survive months to unlock achievements.
+              Complete startups, submit pitches, hire employees, and survive Founder Weeks to unlock achievements.
             </p>
           </GameCard>
         </div>
@@ -289,7 +289,7 @@ export default async function ProfilePage() {
                           <StatusBadge status={startup.status} />
                         </div>
                         <div className="text-xs text-white/40 mt-1">
-                          {startup.simulationMonths.length} months • Score:{" "}
+                          {startup.simulationMonths.length} Founder Weeks • Score:{" "}
                           {startup.finalScore ?? "—"}
                         </div>
                       </div>

@@ -13,7 +13,7 @@ const geistMono = GeistMono;
 export const metadata: Metadata = {
   title: "Founder Arena",
   description:
-    "AI-powered startup strategy game. Pitch your idea, raise funding, build your team, and survive 12 months of volatile markets.",
+    "AI-powered startup strategy game. Pitch your idea, raise funding, build your team, and survive 12 Founder Weeks of volatile markets.",
   keywords: [
     "startup",
     "simulation",

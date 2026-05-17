@@ -3,6 +3,11 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getStrategyState } from "@/lib/actions/strategy";
 import { StrategyClient } from "./strategy-client";
+import { StartupRunHud } from "@/components/game/StartupRunHud";
+import { EventImpactBanner } from "@/components/game/EventImpactBanner";
+import { PageReveal } from "@/components/game/PageReveal";
+import { getRunStepLabel } from "@/lib/game-time/time-scale";
+import { getRouteSprintAtmosphere } from "@/lib/game-time/route-atmosphere";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +55,7 @@ export default async function StrategyPage({
             <h2 className="text-lg font-black text-white">Your Strategy Emerges From Your Decisions</h2>
           </div>
           <p className="text-white/60 text-sm leading-relaxed">
-            The strategy stack builds automatically as you run months, manage crises, hire,
+            The strategy stack builds automatically as you run sprints, manage crises, hire,
             and respond to boardroom pressure. No menu — just your pattern of play. Your founder
             archetype (Growth Hacker, Capital Efficient, Technical Founder, etc.) is computed
             from how you actually play.
@@ -69,9 +74,10 @@ export default async function StrategyPage({
       </div>
     );
   }
+  const currentStep = Math.max(1, Math.min(12, data.currentMonth || 1));
 
   return (
-    <div className="max-w-5xl mx-auto pt-24 pb-12 px-4 md:px-8 space-y-5">
+    <PageReveal className="max-w-5xl mx-auto pt-24 pb-12 px-4 md:px-8 space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href={`/startup/${id}`}>
@@ -89,10 +95,12 @@ export default async function StrategyPage({
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[10px] font-bold px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 uppercase tracking-wider">
-            Month {data.currentMonth}
+            {getRunStepLabel(data.currentMonth)}
           </span>
         </div>
       </div>
+
+      <EventImpactBanner event={getRouteSprintAtmosphere("strategy", currentStep)} />
 
       <StrategyClient
         startupId={id}
@@ -109,6 +117,12 @@ export default async function StrategyPage({
         totalSignals={data.totalSignals}
         archetypeSummary={data.archetypeSummary}
       />
-    </div>
+
+      <StartupRunHud
+        startupId={id}
+        status={data.startupStatus}
+        currentStep={currentStep}
+      />
+    </PageReveal>
   );
 }

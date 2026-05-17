@@ -3,11 +3,25 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Crosshair, ChevronRight } from "lucide-react";
+import { Crosshair, ChevronRight, Film, Radio, ShieldAlert, Swords, Trophy, Zap } from "lucide-react";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
+
+const LOOP = ["Create", "Pitch", "Fund", "Operate", "Survive", "Story", "Legacy", "Arena"];
+
+const SYSTEMS = [
+  { label: "Social", icon: Radio, color: "text-cyan-400" },
+  { label: "Rivals", icon: Swords, color: "text-rose-400" },
+  { label: "Strategy", icon: Zap, color: "text-amber-400" },
+  { label: "Boardroom", icon: ShieldAlert, color: "text-violet-400" },
+  { label: "Story", icon: Film, color: "text-emerald-400" },
+  { label: "Seasons", icon: Trophy, color: "text-cyan-400" },
+];
 
 export default function HomePage() {
+  const reduced = useReducedMotion();
+
   return (
-    <div className="relative min-h-screen bg-[#05050a] flex flex-col items-center justify-center overflow-hidden">
+    <div className="relative min-h-screen bg-[#05050a] flex flex-col items-center justify-center overflow-hidden px-4 py-20">
       {/* Animated background grid */}
       <div className="absolute inset-0 opacity-20">
         <div className="absolute inset-0" style={{
@@ -29,7 +43,7 @@ export default function HomePage() {
               left: `${(i * 37 + 13) % 100}%`,
               top: `${(i * 53 + 7) % 100}%`,
             }}
-            animate={{
+            animate={reduced ? undefined : {
               y: [0, -30, 0],
               opacity: [0.2, 0.8, 0.2],
             }}
@@ -51,7 +65,7 @@ export default function HomePage() {
         >
           <div className="relative inline-block">
             <motion.div
-              animate={{ filter: ["brightness(1)", "brightness(1.2)", "brightness(1)"] }}
+              animate={reduced ? undefined : { filter: ["brightness(1)", "brightness(1.2)", "brightness(1)"] }}
               transition={{ duration: 3, repeat: Infinity }}
             >
               <Image src="/logo.png" alt="Founder Arena" width={120} height={120} priority />
@@ -89,7 +103,7 @@ export default function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.9 }}
         >
-          <Link href="/dashboard">
+          <Link href="/startup/new">
             <motion.button
               className="group relative px-10 py-5 bg-transparent overflow-hidden"
               whileHover={{ scale: 1.05 }}
@@ -101,7 +115,7 @@ export default function HomePage() {
               <div className="absolute bottom-0 right-0 w-3 h-3 border-r-2 border-b-2 border-cyan-400" />
               <span className="relative flex items-center gap-3 text-cyan-400 font-bold tracking-[0.2em]">
                 <Crosshair className="w-5 h-5" />
-                ENTER ARENA
+                START NEW RUN
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
             </motion.button>
@@ -123,6 +137,38 @@ export default function HomePage() {
         </motion.div>
 
         <motion.div
+          className="mx-auto mt-10 max-w-3xl border border-cyan-500/20 bg-cyan-500/5 p-4 hud-corner"
+          initial={reduced ? false : { opacity: 0, y: 18 }}
+          animate={reduced ? undefined : { opacity: 1, y: 0 }}
+          transition={{ delay: 1.05 }}
+        >
+          <p className="mb-3 text-[10px] font-black uppercase tracking-[0.35em] text-cyan-400/55">
+            30-Second Demo Path
+          </p>
+          <div className="flex flex-wrap justify-center gap-1.5">
+            {LOOP.map((step, index) => (
+              <div key={step} className="flex items-center gap-1.5">
+                <span className="border border-white/10 bg-black/30 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white/60">
+                  {step}
+                </span>
+                {index < LOOP.length - 1 && <span className="text-cyan-400/35">→</span>}
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 md:grid-cols-6">
+            {SYSTEMS.map((system) => {
+              const Icon = system.icon;
+              return (
+                <div key={system.label} className="border border-white/10 bg-white/[0.02] p-2">
+                  <Icon className={`mx-auto mb-1 h-4 w-4 ${system.color}`} />
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-white/45">{system.label}</p>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        <motion.div
           className="mt-16 flex flex-col items-center gap-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -132,7 +178,7 @@ export default function HomePage() {
             Closed Beta · Season 1 Live
           </p>
           <p className="text-sm text-white/40 max-w-md text-center">
-            Startup roguelike. Pitch to AI VCs, raise funding, run 12 months of
+            Startup roguelike. Pitch to AI VCs, raise funding, run 12 Founder Weeks of
             crises, rivals, and boardroom battles. Every run becomes a documentary.
           </p>
           <Link href="/demo" className="mt-2 text-xs text-cyan-400/50 hover:text-cyan-400 transition-colors tracking-widest uppercase underline underline-offset-4">

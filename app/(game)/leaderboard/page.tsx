@@ -2,10 +2,15 @@ import Link from "next/link";
 import { Trophy, Medal, Award, Zap, Shield, Swords, Briefcase, Users, TrendingUp, Clock, Star } from "lucide-react";
 import { GameCard } from "@/components/game/GameCard";
 import { OutcomeBadge } from "@/components/game/OutcomeBadge";
+import { EventRevealPanel } from "@/components/game/EventRevealPanel";
+import { EventImpactBanner } from "@/components/game/EventImpactBanner";
+import { PageReveal } from "@/components/game/PageReveal";
 import { cn } from "@/lib/utils";
 import { getSectorIcon } from "@/lib/assets";
 import { getLeaderboardPageData } from "@/lib/actions/leaderboard";
-import type { LeaderboardEntryDisplay, SeasonChallengeProgress, PlayerPositionData, ArenaFeedPublicItem } from "@/lib/seasons/types";
+import type { LeaderboardEntryDisplay, SeasonChallengeProgress, ArenaFeedPublicItem } from "@/lib/seasons/types";
+import { getRunStepLabel } from "@/lib/game-time/time-scale";
+import { getRouteSprintAtmosphere } from "@/lib/game-time/route-atmosphere";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +34,7 @@ const CATEGORY_TABS = [
 function scoreLabel(category: string, entry: LeaderboardEntryDisplay): string {
   if (category === "revenue") return `$${entry.revenue.toLocaleString()}/mo`;
   if (category === "valuation") return `$${entry.valuation.toLocaleString()}`;
-  if (category === "survival") return `${entry.survivalMonths} mo`;
+  if (category === "survival") return `${entry.survivalMonths} weeks`;
   return entry.score.toLocaleString();
 }
 
@@ -90,6 +95,10 @@ export default async function LeaderboardPage({ searchParams }: LeaderboardPageP
 
   const topThree = data.entries.slice(0, 3);
   const rest = data.entries.slice(3);
+  const activeChallenge = data.challengeProgress?.find((p) => !p.completed && p.pct > 0)
+    ?? data.challengeProgress?.find((p) => p.completed)
+    ?? null;
+  const playerBestRank = data.playerPosition?.bestRank ?? null;
 
   const rankMeta = [
     { glow: "cyan" as const, icon: Trophy, textClass: "text-cyan-400", label: "1st" },
@@ -98,7 +107,7 @@ export default async function LeaderboardPage({ searchParams }: LeaderboardPageP
   ];
 
   return (
-    <div>
+    <PageReveal>
       <div className="max-w-7xl mx-auto pt-24 pb-16 px-4 md:px-8">
 
         {/* Back nav */}
@@ -139,6 +148,36 @@ export default async function LeaderboardPage({ searchParams }: LeaderboardPageP
           <div className="mt-3 text-xs text-white/20 italic">{data.season.lore}</div>
         </div>
 
+        <div className="mb-8">
+          <EventImpactBanner event={getRouteSprintAtmosphere("leaderboard")} />
+        </div>
+
+        {data.playerPosition && playerBestRank !== null && (
+          <div className="mb-8">
+            <EventRevealPanel
+              event={{
+                type: "leaderboard",
+                severity: playerBestRank <= 10 ? "high" : "medium",
+                eyebrow: "Arena Ranking Updated",
+                title: `Rank #${playerBestRank} Entered`,
+                subtitle: `${data.playerPosition.startupName} is now visible in the ${data.playerPosition.category} arena.`,
+                accent: "amber",
+                primaryCta: data.playerPosition.startupId
+                  ? { label: "View Startup", href: `/startup/${data.playerPosition.startupId}` }
+                  : { label: "Enter Arena", href: "/startup/new" },
+                affectedStats: [
+                  { label: "Rank", value: `#${playerBestRank}`, accent: "amber" },
+                  { label: "Score", value: data.playerPosition.bestScore?.toLocaleString() ?? "N/A", accent: "cyan" },
+                  { label: "Category", value: data.playerPosition.category.toUpperCase(), accent: "violet" },
+                ],
+                displayKey: `leaderboard:${data.playerPosition.startupId ?? "unknown"}:${playerBestRank}`,
+              }}
+              dismissible
+              sessionGuard
+            />
+          </div>
+        )}
+
         {/* Layout: main content + sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
 
@@ -172,9 +211,10 @@ export default async function LeaderboardPage({ searchParams }: LeaderboardPageP
                 <div className="relative p-8 text-center">
                   <CornerBorders />
                   <Trophy className="w-10 h-10 text-white/40 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No entries yet</h3>
+                  <p className="mb-1 text-[10px] font-black uppercase tracking-[0.32em] text-cyan-400/60">Arena Unclaimed</p>
+                  <h3 className="text-lg font-black uppercase tracking-wider mb-2">No entries yet</h3>
                   <p className="text-sm text-white/40 max-w-md mx-auto">
-                    No startups have completed the simulation in this category yet. Be the first to reach the leaderboard!
+                    No startups have completed the simulation in this category yet. Finish a run to stamp the first public ranking.
                   </p>
                   <Link href="/startup/new" className="inline-block mt-4">
                     <div className="px-3 py-1.5 border border-cyan-500/40 text-cyan-400 text-xs font-medium hover:bg-cyan-500/10 hover:border-cyan-400 transition-colors cursor-pointer inline-block">
@@ -259,7 +299,7 @@ export default async function LeaderboardPage({ searchParams }: LeaderboardPageP
                                 <div className="text-xs text-white/30 mt-0.5">
                                   by {entry.founderName}
                                   {entry.founderTitle && <span className="text-violet-400/60 ml-1">· {entry.founderTitle}</span>}
-                                  {" "}· {entry.survivalMonths} months
+                                  {" "}· {getRunStepLabel(entry.survivalMonths)}
                                 </div>
                               </div>
                               <div className="text-right shrink-0">
@@ -340,6 +380,22 @@ export default async function LeaderboardPage({ searchParams }: LeaderboardPageP
             <div className="relative border border-amber-500/20 bg-amber-500/5 p-4">
               <CornerBorders />
               <div className="text-[10px] tracking-[0.3em] text-amber-400/60 uppercase mb-3">Season Challenges</div>
+              {activeChallenge && (
+                <EventImpactBanner
+                  className="mb-3"
+                  event={{
+                    type: "leaderboard",
+                    severity: activeChallenge.completed ? "high" : "medium",
+                    eyebrow: activeChallenge.completed ? "Season Challenge Complete" : "Season Challenge Progress",
+                    title: activeChallenge.challenge.title,
+                    subtitle: `${activeChallenge.current} / ${activeChallenge.target} progress recorded.`,
+                    accent: "amber",
+                    primaryCta: { label: "View Arena", href: `/leaderboard?tab=${tab}&season=${season}` },
+                    affectedStats: [],
+                    displayKey: `season:${activeChallenge.challenge.id}:${activeChallenge.current}`,
+                  }}
+                />
+              )}
               <div className="space-y-3">
                 {data.season.challenges.map((ch) => {
                   const progress = data.challengeProgress?.find((p) => p.challenge.id === ch.id);
@@ -413,6 +469,6 @@ export default async function LeaderboardPage({ searchParams }: LeaderboardPageP
           </div>
         </div>
       </div>
-    </div>
+    </PageReveal>
   );
 }

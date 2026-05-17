@@ -60,9 +60,9 @@ const OUTCOME_LINES: Record<string, string[]> = {
 };
 
 const SURVIVAL_LINES = [
-  "survived all 12 months. The cockroach lives.",
-  "went the distance — 12 months of pure survival.",
-  "made it to month 12. Endurance is a skill.",
+  "survived all 12 Founder Weeks. The cockroach lives.",
+  "went the distance — 12 sprints of pure survival.",
+  "made it to Demo Day. Endurance is a skill.",
 ];
 
 // ─── Generator ────────────────────────────────────────────────────────────────

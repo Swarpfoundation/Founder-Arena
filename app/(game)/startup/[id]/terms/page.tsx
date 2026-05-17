@@ -11,7 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { GameCard } from "@/components/game/GameCard";
+import { StartupRunHud } from "@/components/game/StartupRunHud";
 import { ArrowRight, Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -133,31 +135,82 @@ export default function TermsPage({ params }: { params: Promise<{ id: string }> 
 
   if (!termSheet) return null;
 
-  const statusVariant =
+  const statusVariant: "default" | "destructive" | "secondary" | "outline" =
     termSheet.status === "accepted"
-      ? "success"
+      ? "default"
       : termSheet.status === "rejected"
       ? "destructive"
       : termSheet.status === "countered"
-      ? "warning"
-      : "default";
+      ? "secondary"
+      : "outline";
+  const statusClasses =
+    termSheet.status === "accepted"
+      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+      : termSheet.status === "rejected"
+        ? "border-rose-500/40 bg-rose-500/10 text-rose-300"
+        : termSheet.status === "countered"
+          ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+          : "border-cyan-500/40 bg-cyan-500/10 text-cyan-300";
+  const dilution = Number(termSheet.proposedEquity);
+  const controlWarnings = [
+    termSheet.boardSeat ? "Investor board seat requested" : null,
+    termSheet.boardObserver ? "Board observer access requested" : null,
+    dilution >= 20 ? "High dilution for this round" : null,
+    termSheet.founderSalaryCap ? "Founder salary cap included" : null,
+  ].filter((x): x is string => !!x);
 
   const isActive = termSheet.status === "proposed" || termSheet.status === "countered";
 
   return (
-    <div className="max-w-7xl mx-auto pt-24 pb-12 px-4 md:px-8 max-w-3xl">
+    <div className="max-w-4xl mx-auto pt-24 pb-12 px-4 md:px-8">
       <div className="mb-6">
         <Link href={`/startup/${startupId}`} className="text-sm text-white/40 hover:text-white">
           ← Back to Startup
         </Link>
       </div>
 
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Term Sheet</h1>
-        <Badge variant={statusVariant} className="capitalize">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-[10px] text-amber-400/60 font-bold tracking-[0.35em] uppercase mb-1">Term Sheet Negotiation</p>
+          <h1 className="text-3xl font-black text-white text-glow-cyan">Capital vs Control</h1>
+          <p className="text-sm text-white/40 mt-1">Investor terms are a tradeoff. Cash extends runway; control changes the run.</p>
+        </div>
+        <Badge variant={statusVariant} className={cn("capitalize", statusClasses)}>
           {termSheet.status}
         </Badge>
       </div>
+
+      <StartupRunHud
+        startupId={startupId}
+        status={termSheet.status === "accepted" ? "funded" : "pitching"}
+        className="mb-6"
+      />
+
+      <GameCard glow="amber" className="mb-6 hud-corner border-amber-500/20">
+        <div className="grid gap-4 md:grid-cols-[1fr_220px] md:items-center">
+          <div>
+            <p className="text-[10px] text-amber-400 font-black uppercase tracking-widest mb-2">Investor Offer</p>
+            <p className="text-sm text-white/60 leading-relaxed">
+              ${Number(termSheet.proposedAmount).toLocaleString()} for {dilution}% equity at a ${Number(termSheet.postMoneyValuation).toLocaleString()} post-money valuation.
+            </p>
+          </div>
+          <div className="border border-amber-500/25 bg-amber-500/5 p-3">
+            <p className="text-[9px] text-white/35 font-bold uppercase tracking-wider mb-1">Dilution Load</p>
+            <p className={cn("text-3xl font-black", dilution >= 20 ? "text-rose-400" : dilution >= 12 ? "text-amber-400" : "text-emerald-400")}>
+              {dilution}%
+            </p>
+          </div>
+        </div>
+        {controlWarnings.length > 0 && (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {controlWarnings.map((warning) => (
+              <div key={warning} className="border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-xs text-rose-200/80">
+                {warning}
+              </div>
+            ))}
+          </div>
+        )}
+      </GameCard>
 
       {/* Guided CTA */}
       {termSheet.status === "proposed" && (
@@ -182,12 +235,18 @@ export default function TermsPage({ params }: { params: Promise<{ id: string }> 
         <GameCard glow="emerald" className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex-1">
-              <p className="text-sm text-white/90">Funding closed. Time to operate your company.</p>
+              <p className="text-sm text-white/90">Funding closed. The company is now cleared for Week 1.</p>
+              <p className="mt-1 text-xs text-white/40">Choose the first sprint decision, run the sprint, then inspect the recap across Social, Rivals, Strategy, and Boardroom.</p>
             </div>
             <Link href={`/startup/${startupId}/operate`}>
               <Button className="gap-2 shrink-0">
-                Operate Company
+                Enter Week 1
                 <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+            <Link href={`/startup/${startupId}/team`}>
+              <Button variant="outline" className="gap-2 shrink-0">
+                Build Team
               </Button>
             </Link>
           </div>

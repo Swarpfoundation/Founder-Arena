@@ -330,7 +330,7 @@ export function classifyFinalOutcome(
   if (isDead) {
     return {
       outcome: "DEAD",
-      reason: `Startup died after ${monthsSurvived} months.`,
+      reason: `Startup died after ${monthsSurvived} Founder Weeks.`,
       founderScore: Math.round(state.valuation / 100000 + monthsSurvived * 10),
     };
   }
@@ -344,7 +344,7 @@ export function classifyFinalOutcome(
 
   if (state.cash <= 0) {
     outcome = "ZOMBIE";
-    reason = "Survived 12 months but ran out of cash.";
+    reason = "Survived 12 Founder Weeks but ran out of cash.";
   } else if (finalRevenue > 100000 && capitalEfficiency > 2) {
     outcome = "BREAKOUT";
     reason = "Strong revenue growth with healthy unit economics.";

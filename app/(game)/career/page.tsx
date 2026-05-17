@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getCareerRecord } from "@/lib/actions/career";
 import { CareerClient } from "./career-client";
+import { EventImpactBanner } from "@/components/game/EventImpactBanner";
+import { getRouteSprintAtmosphere } from "@/lib/game-time/route-atmosphere";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +40,8 @@ export default async function CareerPage() {
           )}
         </div>
       </div>
+
+      <EventImpactBanner event={getRouteSprintAtmosphere("career")} />
 
       <CareerClient data={data} />
     </div>

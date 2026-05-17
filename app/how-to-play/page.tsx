@@ -52,7 +52,7 @@ export default function HowToPlayPage() {
           <GameCard>
             <p className="text-sm text-white/90 leading-relaxed mb-4">
               Founder Arena is a single-player simulation game where you act as a startup founder. You create a company,
-              pitch it to AI venture capitalists, negotiate term sheets, hire a team, and navigate 12 months of volatile
+              pitch it to AI venture capitalists, negotiate term sheets, hire a team, and navigate 12 Founder Weeks of volatile
               markets — all powered by deterministic game math and AI-generated narrative.
             </p>
             <p className="text-sm text-white/90 leading-relaxed">
@@ -84,7 +84,7 @@ export default function HowToPlayPage() {
             <StepCard
               icon={<Calendar className="w-5 h-5 text-amber-400" />}
               title="4. Operate & Survive"
-              description="Make 1-3 decisions per month for 12 months. Hire team members, react to market events, and manage cash, burn, and runway."
+              description="Make 1-3 sprint decisions across 12 Founder Weeks. Hire team members, react to market events, and manage cash, burn, and runway."
             />
           </div>
         </section>
@@ -156,13 +156,13 @@ export default function HowToPlayPage() {
           </GameCard>
         </section>
 
-        {/* Monthly Simulation */}
+        {/* Sprint Simulation */}
         <section className="mb-12">
-          <SectionHeader title="How Monthly Simulation Works" accent="cyan" />
+          <SectionHeader title="How Sprint Simulation Works" accent="cyan" />
           <GameCard>
             <div className="space-y-4 text-sm text-white/90 leading-relaxed">
               <p>
-                After funding, you enter <strong>12 months of operation</strong>. Each month, you select 1-3 decisions
+                After funding, you enter <strong>12 Founder Weeks of operation</strong>. Each sprint, you select 1-3 decisions
                 from a catalog of options: hire engineers, launch beta, cut costs, improve security, push marketing, etc.
               </p>
               <p>
@@ -198,8 +198,8 @@ export default function HowToPlayPage() {
           <GameCard>
             <div className="space-y-4 text-sm text-white/90 leading-relaxed">
               <p>
-                Every month, a <strong>market snapshot</strong> determines macro conditions. 12 scenarios rotate
-                through the year: AI booms, recessions, crypto winters, regulatory crackdowns, supply chain crises, etc.
+                Every sprint, a <strong>market snapshot</strong> determines macro conditions. 12 scenarios rotate
+                through the accelerator run: AI booms, recessions, crypto winters, regulatory crackdowns, supply chain crises, etc.
               </p>
               <p>
                 Your startup&apos;s <strong>sector and region</strong> determine how exposed you are to each macro factor.
@@ -207,7 +207,7 @@ export default function HowToPlayPage() {
                 faces higher energy costs.
               </p>
               <p>
-                Market conditions modify your monthly results via:
+                Market conditions modify your sprint results via:
               </p>
               <ul className="space-y-1 ml-4">
                 <li>• Revenue multipliers (+/- up to 25%)</li>
@@ -235,7 +235,7 @@ export default function HowToPlayPage() {
               <ul className="space-y-1 ml-4">
                 <li>• Final valuation</li>
                 <li>• Final revenue</li>
-                <li>• Months survived</li>
+                <li>• Founder Weeks survived</li>
                 <li>• Capital efficiency (revenue / burn)</li>
                 <li>• Market difficulty bonus</li>
               </ul>
@@ -302,7 +302,7 @@ export default function HowToPlayPage() {
                 <li className="flex items-start gap-2">
                   <OutcomeDeadIcon className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" size={16} />
                   <span>
-                    <strong>Product death</strong> — After month 9, product progress is below 20% and revenue is
+                    <strong>Product death</strong> — After Week 9, product progress is below 20% and revenue is
                     under $5,000. You have no traction.
                   </span>
                 </li>
@@ -333,7 +333,7 @@ export default function HowToPlayPage() {
             <TipCard
               icon={<Trophy className="w-5 h-5 text-violet-400" />}
               title="Adapt to Markets"
-              description="Check the Market Intelligence page before each month. Tailor decisions to the current macro scenario."
+              description="Check the Market Intelligence page before each sprint. Tailor decisions to the current macro scenario."
             />
           </div>
         </section>

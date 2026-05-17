@@ -1,4 +1,4 @@
-import { PostTone, SocialChannel } from "./types";
+import { PostTone } from "./types";
 
 interface PostContext {
   startupName: string;
@@ -24,15 +24,15 @@ function numericSeed(actionId: string, month: number, startupName: string): numb
 
 const FOUNDER_X_THREAD = [
   (ctx: PostContext) =>
-    `We've been building ${ctx.startupName} for ${ctx.month} months. Here's what we actually learned (thread):`,
+    `We've been building ${ctx.startupName} for ${ctx.month} Founder Weeks. Here's what we actually learned (thread):`,
   (ctx: PostContext) =>
-    `Honest update on ${ctx.startupName}: the hard parts nobody talks about. Month ${ctx.month}:`,
+    `Honest update on ${ctx.startupName}: the hard parts nobody talks about. Week ${ctx.month}:`,
   (ctx: PostContext) =>
     `Things I wish I knew before starting ${ctx.startupName}. Product is at ${ctx.productProgress}% and the edge cases are wild.`,
   (ctx: PostContext) =>
     `We shipped something real today. Not polished. Not safe. Just working. ${ctx.startupName} keeps moving.`,
   () =>
-    `Founders who tell you it gets easier are lying. Month ${Math.floor(Math.random() * 12) + 1} is different. It gets *clearer*.`,
+    `Founders who tell you it gets easier are lying. Week ${Math.floor(Math.random() * 12) + 1} is different. It gets *clearer*.`,
   (ctx: PostContext) =>
     `The ${ctx.sector} space moves fast. Here's how ${ctx.startupName} is staying alive in it:`,
 ];
@@ -41,7 +41,7 @@ const PRODUCT_DEMO_TIKTOK = [
   (ctx: PostContext) =>
     `60 seconds of ${ctx.startupName}. No narration. Just the product. You'll get it.`,
   (ctx: PostContext) =>
-    `We built this in ${ctx.month} months. ${ctx.productProgress}% complete. This is what it looks like right now.`,
+    `We built this in ${ctx.month} Founder Weeks. ${ctx.productProgress}% complete. This is what it looks like right now.`,
   () =>
     `Not a pitch. Not a feature list. Just a real demo, live, nothing edited out.`,
   (ctx: PostContext) =>
@@ -54,7 +54,7 @@ const INSTAGRAM_BTS = [
   () =>
     `3am. Two monitors. Cold coffee. This is what building actually looks like.`,
   (ctx: PostContext) =>
-    `The team behind ${ctx.startupName}. Month ${ctx.month}. Still here. Still shipping.`,
+    `The team behind ${ctx.startupName}. Week ${ctx.month}. Still here. Still shipping.`,
   () =>
     `We closed the office early and shipped from a café instead. Sometimes the walls close in.`,
   (ctx: PostContext) =>
@@ -65,7 +65,7 @@ const INSTAGRAM_BTS = [
 
 const LAUNCH_ANNOUNCEMENT = [
   (ctx: PostContext) =>
-    `${ctx.startupName} is live. After ${ctx.month} months of building, we're shipping to real users today.`,
+    `${ctx.startupName} is live. After ${ctx.month} Founder Weeks of building, we're shipping to real users today.`,
   (ctx: PostContext) =>
     `We told no one about this until now. ${ctx.startupName} is open. ${ctx.sector}, rethought.`,
   (ctx: PostContext) =>
@@ -78,15 +78,15 @@ const LAUNCH_ANNOUNCEMENT = [
 
 const FOUNDER_TRANSPARENCY = [
   (ctx: PostContext) =>
-    `Month ${ctx.month} numbers: revenue is real, burn is real, the pressure is real. Here's where we actually stand.`,
+    `Week ${ctx.month} numbers: revenue is real, burn is real, the pressure is real. Here's where we actually stand.`,
   (ctx: PostContext) =>
-    `Not every startup needs to chase hype. This month we chose retention over noise. Here's what that cost ${ctx.startupName}.`,
+    `Not every startup needs to chase hype. This sprint we chose retention over noise. Here's what that cost ${ctx.startupName}.`,
   () =>
     `We almost ran out of cash. We didn't. Here's what we cut, what we kept, and what we learned.`,
   (ctx: PostContext) =>
     `Honest update: ${ctx.productProgress}% done on the core product. The rest is in motion. No hype, just work.`,
   () =>
-    `I'm going to tell you something most founders won't: we had a bad month and we're still here.`,
+    `I'm going to tell you something most founders won't: we had a bad sprint and we're still here.`,
 ];
 
 const INFLUENCER_COLLAB = [
@@ -126,9 +126,9 @@ const CUSTOMER_TESTIMONIAL = [
 
 const INVESTOR_UPDATE = [
   (ctx: PostContext) =>
-    `Month ${ctx.month} investor brief for ${ctx.startupName}: revenue, runway, and what's next.`,
+    `Week ${ctx.month} investor brief for ${ctx.startupName}: revenue, runway, and what's next.`,
   (ctx: PostContext) =>
-    `Sharing our ${ctx.month}-month traction report publicly. If you're in ${ctx.sector}, this will interest you.`,
+    `Sharing our Week ${ctx.month} traction report publicly. If you're in ${ctx.sector}, this will interest you.`,
   () =>
     `We tell our investors the same thing we tell the public: here are the numbers, here is the plan.`,
   (ctx: PostContext) =>

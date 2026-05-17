@@ -72,7 +72,7 @@ Five challenges per season. Progress is calculated from the player's most recent
 | ID | Category | Requirement | Reward |
 |----|----------|-------------|--------|
 | `product_led_breakout` | product | 80%+ product progress | +200 bonus score |
-| `cockroach_survival` | survival | 12 months survived | +150 bonus score |
+| `cockroach_survival` | survival | 12 Founder Weeks survived | +150 bonus score |
 | `rival_killer` | rivalry | 2+ rivals defeated | +100 bonus score |
 | `boardroom_survivor` | boardroom | 3+ boardroom events resolved | +120 bonus score |
 | `trust_moat` | community | Social trust ≥ 75 | +80 bonus score |
@@ -85,7 +85,7 @@ Deterministic narrative feed generated from top 20 leaderboard entries. Categori
 
 - `leaderboard_move` — top 3 entries
 - `outcome_achieved` — BREAKOUT, SERIES_A_READY, ACQUISITION_TARGET, etc.
-- `season_milestone` — 12-month survivors
+- `season_milestone` — 12-week accelerator survivors
 - `new_entry` — all other entries
 
 No external APIs. Seeded via `djb2(startupId + rank + score)`.

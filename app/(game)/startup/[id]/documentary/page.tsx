@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getDocumentaryData } from "@/lib/actions/documentary";
 import { DocumentaryClient } from "./documentary-client";
+import { StartupRunHud } from "@/components/game/StartupRunHud";
+import { EventImpactBanner } from "@/components/game/EventImpactBanner";
+import { PageReveal } from "@/components/game/PageReveal";
+import { getRouteSprintAtmosphere } from "@/lib/game-time/route-atmosphere";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +42,7 @@ export default async function DocumentaryPage({
             </h1>
           </div>
         </div>
+        <EventImpactBanner event={getRouteSprintAtmosphere("documentary")} />
         <div className="game-card p-8 hud-corner space-y-4">
           <div>
             <p className="text-white/40 text-xs uppercase tracking-widest font-bold mb-1">
@@ -46,7 +51,7 @@ export default async function DocumentaryPage({
             <h2 className="text-lg font-black text-white">Your Documentary Generates When the Run Ends</h2>
           </div>
           <p className="text-white/60 text-sm leading-relaxed">
-            When your startup completes its 12-month run — or dies — Founder Arena generates
+            When your startup completes its 12-week accelerator run — or dies — Founder Arena generates
             a documentary: narrative arc, key moments, rival battles, boardroom drama, and
             final outcome. Every detail is pulled from your actual decisions.
           </p>
@@ -69,7 +74,7 @@ export default async function DocumentaryPage({
   }
 
   return (
-    <div className="max-w-4xl mx-auto pt-24 pb-12 px-4 md:px-8 space-y-5">
+    <PageReveal className="max-w-4xl mx-auto pt-24 pb-12 px-4 md:px-8 space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href={`/startup/${id}`}>
@@ -87,7 +92,16 @@ export default async function DocumentaryPage({
         </div>
       </div>
 
+      <EventImpactBanner event={getRouteSprintAtmosphere("documentary", 12)} />
+
       <DocumentaryClient data={data} startupId={id} />
-    </div>
+
+      <StartupRunHud
+        startupId={id}
+        status={data.startup.status}
+        finalOutcome={data.startup.finalOutcome}
+        currentStep={12}
+      />
+    </PageReveal>
   );
 }

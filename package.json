@@ -16,6 +16,9 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "demo:seed": "tsx scripts/seed-founder-arena-demo.ts",
+    "demo:reset": "tsx scripts/seed-founder-arena-demo.ts --reset-only --confirm-demo-reset",
+    "demo:reseed": "tsx scripts/seed-founder-arena-demo.ts --confirm-demo-reset",
     "smoke": "node scripts/smoke.mjs",
     "smoke:db": "tsx scripts/db-smoke.ts"
   },

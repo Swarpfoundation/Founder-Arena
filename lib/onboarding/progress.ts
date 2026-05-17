@@ -167,7 +167,7 @@ function deriveNextBestAction(input: ActionDerivationInput): NextBestAction | nu
   // Priority 6: Run first month
   if (!hasSimMonth) {
     return {
-      label: "Run your first operating month",
+      label: "Run your first sprint",
       href: `/startup/${targetId}/operate`,
       description: "Make decisions, hire team members, and navigate market conditions.",
       urgency: "high",
@@ -189,7 +189,7 @@ function deriveNextBestAction(input: ActionDerivationInput): NextBestAction | nu
     return {
       label: "Continue operating",
       href: `/startup/${activeStartup.id}/operate`,
-      description: "Keep making monthly decisions to survive all 12 months.",
+      description: "Keep making sprint decisions to survive all 12 Founder Weeks.",
       urgency: "medium",
     };
   }
@@ -278,9 +278,9 @@ export function getNextBestActionForStartup(
   if (startup.status === "funded" || startup.status === "active") {
     if (!startup.simulationMonths || startup.simulationMonths.length === 0) {
       return {
-        label: "Run first month",
+        label: "Run first sprint",
         href: `/startup/${id}/operate`,
-        description: "Make your first monthly operating decisions.",
+        description: "Make your first sprint operating decisions.",
         urgency: "high",
       };
     }
@@ -298,7 +298,7 @@ export function getNextBestActionForStartup(
     return {
       label: "Continue operating",
       href: `/startup/${id}/operate`,
-      description: "Make decisions for the next month and survive all 12 months.",
+      description: "Make decisions for the next sprint and survive all 12 Founder Weeks.",
       urgency: "medium",
     };
   }

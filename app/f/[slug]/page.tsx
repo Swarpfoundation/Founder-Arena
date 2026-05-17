@@ -178,7 +178,7 @@ export default async function PublicFounderPage({ params }: { params: Promise<{ 
                           {startup.finalOutcome && <OutcomeBadge outcome={startup.finalOutcome} />}
                         </div>
                         <div className="text-xs text-white/40 mt-1">
-                          {startup.monthsSurvived} months • Score: {startup.finalScore ?? "—"}
+                          {startup.monthsSurvived} Founder Weeks • Score: {startup.finalScore ?? "—"}
                         </div>
                       </div>
                       <div className="text-right">
@@ -215,7 +215,7 @@ export default async function PublicFounderPage({ params }: { params: Promise<{ 
                     <div className="flex-1 min-w-0">
                       <h4 className="font-semibold text-white truncate">{entry.startupName}</h4>
                       <div className="text-xs text-white/40 mt-0.5">
-                        {entry.category} • {entry.season} • {entry.survivalMonths} months
+                        {entry.category} • {entry.season} • {entry.survivalMonths} Founder Weeks
                       </div>
                     </div>
                     <div className="text-right">

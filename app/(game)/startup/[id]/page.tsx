@@ -4,8 +4,12 @@ import { getStartupById } from "@/lib/actions/startup";
 import { getTermSheet } from "@/lib/actions/terms";
 import { getNextBestActionForStartup } from "@/lib/onboarding/progress";
 import { GameCard } from "@/components/game/GameCard";
+import { GameCeremonyModal } from "@/components/game/GameCeremonyModal";
 import { StatusBadge } from "@/components/game/StatusBadge";
 import { OutcomeBadge } from "@/components/game/OutcomeBadge";
+import { StartupRunHud } from "@/components/game/StartupRunHud";
+import { SprintPhaseBanner } from "@/components/game/SprintPhaseBanner";
+import { MonthOneBriefing } from "@/components/game/MonthOneBriefing";
 import { NextBestActionInline } from "@/components/onboarding/NextBestAction";
 import {
   ArrowLeft,
@@ -27,6 +31,9 @@ import { cn } from "@/lib/utils";
 import {
   MetricValuationIcon,
 } from "@/components/assets";
+import { buildFinalResultCtas, getOutcomeCeremony } from "@/lib/gamefeel/ceremony";
+import { buildFirstRunAction } from "@/lib/gamefeel/first-run";
+import { getFinalVerdictLabel, getShortRunStepLabel } from "@/lib/game-time/time-scale";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +81,20 @@ export default async function StartupProfilePage({ params }: { params: Promise<{
     1,
     ...months.map((m) => Math.max(m.revenue, m.burnRate))
   );
+  const finalCeremony = startup.finalOutcome ? getOutcomeCeremony(startup.finalOutcome) : null;
+  const runStep =
+    startup.status === "completed" || startup.status === "dead"
+      ? Math.max(1, Math.min(12, startup.simulationMonths.length || 12))
+      : Math.max(1, Math.min(12, startup.simulationMonths.length + 1));
+  const firstRunAction = buildFirstRunAction({
+    startupId: id,
+    status: startup.status,
+    hasPitch: !!startup.pitchDeck,
+    hasReview: startup.vcReviews.length > 0,
+    hasFunding: startup.fundingRounds.length > 0,
+    monthsRun: startup.simulationMonths.length,
+    teamSize: activeEmployees.length,
+  });
 
   return (
     <div className="max-w-5xl mx-auto pt-24 pb-12 px-4 md:px-8 space-y-5">
@@ -105,6 +126,28 @@ export default async function StartupProfilePage({ params }: { params: Promise<{
           <NextBestActionInline action={nextAction} />
         </div>
       )}
+
+      <StartupRunHud
+        startupId={id}
+        status={startup.status}
+        finalOutcome={startup.finalOutcome}
+        nextAction={firstRunAction}
+        currentStep={runStep}
+        hasTeam={activeEmployees.length > 0}
+      />
+
+      <SprintPhaseBanner
+        step={runStep}
+        status={startup.status}
+        hasTeam={activeEmployees.length > 0}
+      />
+
+      <MonthOneBriefing
+        startupId={id}
+        status={startup.status}
+        monthsRun={startup.simulationMonths.length}
+        teamSize={activeEmployees.length}
+      />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -227,7 +270,7 @@ export default async function StartupProfilePage({ params }: { params: Promise<{
                         style={{ height: `${burnH}%` }}
                       />
                     </div>
-                    <span className="text-[9px] text-white/30 font-bold">M{h.monthNumber}</span>
+                    <span className="text-[9px] text-white/30 font-bold">{getShortRunStepLabel(h.monthNumber)}</span>
                   </div>
                 );
               })}
@@ -369,10 +412,37 @@ export default async function StartupProfilePage({ params }: { params: Promise<{
 
       {/* Final Result */}
       {(startup.status === "completed" || startup.status === "dead") && (
+        finalCeremony && (
+          <GameCeremonyModal
+            title={finalCeremony.title}
+            subtitle={finalCeremony.subtitle}
+            tone={finalCeremony.tone}
+            accent={finalCeremony.accent}
+            narrative={startup.finalSummary ?? undefined}
+            ceremonyKey={`profile-final:${startup.id}:${startup.finalOutcome}:${startup.finalScore ?? 0}`}
+            enableCelebration={finalCeremony.isPositive}
+            stats={[
+              { label: "Score", value: startup.finalScore ?? 0, accent: "amber" },
+              { label: "Valuation", value: Math.round(startup.valuation / 1000), prefix: "$", suffix: "K", accent: "violet" },
+              { label: "Revenue", value: Math.round(startup.revenue / 1000), prefix: "$", suffix: "K/mo", accent: "emerald" },
+              { label: "Weeks", value: startup.simulationMonths.length, suffix: "/12", accent: "cyan" },
+            ]}
+            unlocks={["Founder Documentary", "Career Legacy", "Arena Season Entry"]}
+            ctas={buildFinalResultCtas({
+              startupId: id,
+              publicSlug: startup.publicSlug,
+              hasLeaderboardEntry: true,
+              isDead: startup.status === "dead",
+            })}
+          />
+        )
+      )}
+
+      {(startup.status === "completed" || startup.status === "dead") && (
         <div className="game-card p-4 hud-corner">
           <div className="flex items-center gap-2 mb-3">
             <Target className="w-4 h-4 text-white/40" />
-            <h3 className="text-sm font-bold text-white tracking-wider uppercase">Final Result</h3>
+            <h3 className="text-sm font-bold text-white tracking-wider uppercase">{getFinalVerdictLabel()}</h3>
           </div>
           <div className="space-y-3">
             {/* Run Legacy compact block */}
@@ -404,7 +474,7 @@ export default async function StartupProfilePage({ params }: { params: Promise<{
               <span className="text-sm font-bold text-white">{startup.finalScore ?? "—"}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-white/40">Months</span>
+              <span className="text-sm text-white/40">Founder Weeks</span>
               <span className="text-sm font-bold text-white">{startup.simulationMonths.length}</span>
             </div>
             {startup.publicSlug && (

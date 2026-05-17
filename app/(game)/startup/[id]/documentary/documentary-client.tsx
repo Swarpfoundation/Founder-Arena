@@ -31,6 +31,8 @@ import type {
   ChapterCategory,
   DocumentaryTone,
 } from "@/lib/documentary/types";
+import { RewardPopup } from "@/components/game/RewardPopup";
+import { getFinalVerdictLabel, getShortRunStepLabel } from "@/lib/game-time/time-scale";
 
 // ─── Accent maps ──────────────────────────────────────────────────────────────
 
@@ -155,7 +157,7 @@ function HeroSection({ data }: { data: DocumentaryPageData }) {
         <StatTile label="SCORE" value={documentary.heroStats.finalScore.toLocaleString()} icon={<Trophy className="w-3.5 h-3.5 text-amber-400" />} />
         <StatTile label="VALUATION" value={fmtVal(documentary.heroStats.finalValuation)} icon={<TrendingUp className="w-3.5 h-3.5 text-violet-400" />} />
         <StatTile label="REVENUE" value={fmtVal(documentary.heroStats.finalRevenue)} icon={<DollarSign className="w-3.5 h-3.5 text-emerald-400" />} />
-        <StatTile label="MONTHS" value={String(documentary.heroStats.monthsSurvived)} icon={<Calendar className="w-3.5 h-3.5 text-cyan-400" />} />
+        <StatTile label="WEEKS" value={String(documentary.heroStats.monthsSurvived)} icon={<Calendar className="w-3.5 h-3.5 text-cyan-400" />} />
         {documentary.heroStats.dominantPlaystyle && (
           <StatTile label="STRATEGY" value={documentary.heroStats.dominantPlaystyle} icon={<Zap className="w-3.5 h-3.5 text-amber-400" />} />
         )}
@@ -246,7 +248,7 @@ function Timeline({ moments }: { moments: DocumentaryTimelineMoment[] }) {
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 border uppercase tracking-wider ${impactClass}`}>
                         {m.impact}
                       </span>
-                      <span className="text-[9px] text-white/30 font-bold">M{m.month}</span>
+                      <span className="text-[9px] text-white/30 font-bold">{getShortRunStepLabel(m.month)}</span>
                     </div>
                   </div>
                   <p className="text-xs text-white/60 leading-relaxed">{m.description}</p>
@@ -315,7 +317,7 @@ function ShareCardPanel({ data }: { data: DocumentaryPageData }) {
             <p className="text-sm font-black text-white">{fmtVal(shareCard.finalValuation)}</p>
           </div>
           <div>
-            <p className="text-[9px] text-white/30 uppercase tracking-wider">Months</p>
+            <p className="text-[9px] text-white/30 uppercase tracking-wider">Founder Weeks</p>
             <p className="text-sm font-black text-white">{shareCard.monthsSurvived}</p>
           </div>
         </div>
@@ -557,7 +559,7 @@ function FinalVerdictPanel({ data }: { data: DocumentaryPageData }) {
     <div className={`border p-4 hud-corner ${accent}`}>
       <div className="flex items-center gap-2 mb-3">
         <Award className={`w-4 h-4 ${textColor}`} />
-        <h3 className={`text-xs font-bold tracking-wider uppercase ${textColor}`}>Final Verdict</h3>
+        <h3 className={`text-xs font-bold tracking-wider uppercase ${textColor}`}>{getFinalVerdictLabel()}</h3>
       </div>
       <p className="text-sm text-white/80 leading-relaxed">{finalVerdict}</p>
     </div>
@@ -621,6 +623,14 @@ export function DocumentaryClient({
 }) {
   return (
     <div className="space-y-6">
+      <RewardPopup
+        title="Founder Documentary Generated"
+        description="The run has been converted into a shareable story: verdict, timeline, rivals, social pressure, and career impact."
+        accent="violet"
+        ctaLabel="Share This Run"
+        ctaHref={`/startup/${startupId}/documentary`}
+      />
+
       {/* Hero */}
       <HeroSection data={data} />
 

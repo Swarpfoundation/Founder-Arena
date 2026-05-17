@@ -14,6 +14,7 @@ const PUBLIC_PATHS = new Set([
   "/leaderboard",
   "/graveyard",
   "/how-to-play",
+  "/demo",
   // Public API routes (each must be justified individually)
   "/api/health",            // Deployment health check
   "/api/webhooks/stripe",   // Stripe webhook — signature verified inside handler
