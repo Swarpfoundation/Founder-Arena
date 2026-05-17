@@ -432,6 +432,13 @@ export default async function StartupProfilePage({ params }: { params: Promise<{
               View career legacy
               <ChevronRight className="w-3.5 h-3.5" />
             </Link>
+            <Link
+              href="/leaderboard?tab=overall&season=beta-season-1"
+              className="inline-flex items-center gap-1 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+            >
+              View Arena Ranking
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
         </div>
       )}

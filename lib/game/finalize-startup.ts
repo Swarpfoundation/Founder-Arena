@@ -156,42 +156,6 @@ export async function finalizeStartup(startupId: string): Promise<FinalizationRe
     marketScenario = snapshot?.scenarioKey ?? "neutral";
   }
 
-  const leaderboardMetadata = {
-    marketDifficulty: Math.round(avgDifficulty),
-    marketScenario,
-    difficultyBonus,
-    crisisBonus,
-    eventsResolved: eventResolvedList.length,
-  };
-
-  // Leaderboard entry (idempotent inside the helper)
-  await createOrUpdateLeaderboardEntry(
-    startupId,
-    startup.userId,
-    leaderboardScore,
-    startup.valuation,
-    startup.revenue,
-    monthsSurvived,
-    outcome.outcome,
-    "overall",
-    "beta-season-1",
-    leaderboardMetadata as Record<string, unknown>
-  );
-
-  // Sector-specific leaderboard entry
-  await createOrUpdateLeaderboardEntry(
-    startupId,
-    startup.userId,
-    leaderboardScore,
-    startup.valuation,
-    startup.revenue,
-    monthsSurvived,
-    outcome.outcome,
-    startup.sector.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-    "beta-season-1",
-    leaderboardMetadata as Record<string, unknown>
-  );
-
   // Founder profile
   const profile = await getOrCreateFounderProfile(startup.userId);
   await updateFounderStatsAfterFinalization(startup.userId, startup);
@@ -340,6 +304,118 @@ export async function finalizeStartup(startupId: string): Promise<FinalizationRe
     };
   } catch {
     // career update is best-effort
+  }
+
+  // ─── Enriched leaderboard metadata (Phase 13) ────────────────────────────
+  // Boardroom summary
+  let boardroomEventsResolved = 0;
+  let boardroomSummary: string | null = null;
+  let socialTrust = 50;
+  try {
+    const { parseBoardroomState } = await import("@/lib/boardroom/boardroom-engine");
+    const ssForBoardroom = await db.socialState.findUnique({ where: { startupId } });
+    if (ssForBoardroom) {
+      socialTrust = ssForBoardroom.trust;
+      const bState = parseBoardroomState(ssForBoardroom.boardroomState as unknown);
+      boardroomEventsResolved = bState.eventHistory.filter((e) => e.resolved).length;
+      boardroomSummary = boardroomEventsResolved > 0
+        ? `Resolved ${boardroomEventsResolved} boardroom event${boardroomEventsResolved > 1 ? "s" : ""}. Board confidence: ${bState.boardConfidence}.`
+        : null;
+    }
+  } catch {
+    // boardroom data is best-effort
+  }
+
+  // Rivals summary
+  let rivalsSummary: string | null = null;
+  let rivalsDefeatedCount = 0;
+  try {
+    const ssForRivals = await db.socialState.findUnique({ where: { startupId } });
+    if (ssForRivals) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rivals = (ssForRivals.rivalProfiles as unknown as any[]) ?? [];
+      const rivalsTotal = rivals.length;
+      rivalsDefeatedCount = rivals.filter((r: { isDefeated?: boolean }) => r.isDefeated === true).length;
+      rivalsSummary = rivalsTotal > 0
+        ? `Faced ${rivalsTotal} rival${rivalsTotal > 1 ? "s" : ""}. Defeated ${rivalsDefeatedCount}.`
+        : null;
+    }
+  } catch {
+    // rivals data is best-effort
+  }
+
+  // Documentary tagline
+  let documentaryTagline: string | null = null;
+  try {
+    const aiData = startup.aiAnalysis as Record<string, unknown> | null;
+    const doc = aiData?.documentary as Record<string, unknown> | undefined;
+    documentaryTagline = (doc?.tagline as string) ?? null;
+  } catch {
+    // best-effort
+  }
+
+  const leaderboardMetadata = {
+    marketDifficulty: Math.round(avgDifficulty),
+    marketScenario,
+    difficultyBonus,
+    crisisBonus,
+    eventsResolved: eventResolvedList.length,
+    dominantPlaystyle: finalDominantPlaystyle,
+    secondaryPlaystyle: finalSecondaryPlaystyle,
+    founderTitle: careerUpdate?.newTitle ?? null,
+    founderRank: careerUpdate?.newRank ?? null,
+    documentaryTagline,
+    rivalsSummary,
+    boardroomSummary,
+    boardroomEventsResolved,
+    socialTrust,
+    rivalsDefeated: rivalsDefeatedCount,
+  };
+
+  // Overall leaderboard entry (idempotent upsert)
+  await createOrUpdateLeaderboardEntry(
+    startupId, startup.userId, leaderboardScore,
+    startup.valuation, startup.revenue, monthsSurvived, outcome.outcome,
+    "overall", "beta-season-1", leaderboardMetadata as Record<string, unknown>
+  );
+
+  // Sector-specific
+  await createOrUpdateLeaderboardEntry(
+    startupId, startup.userId, leaderboardScore,
+    startup.valuation, startup.revenue, monthsSurvived, outcome.outcome,
+    startup.sector.toLowerCase().replace(/[^a-z0-9]+/g, "-"), "beta-season-1",
+    leaderboardMetadata as Record<string, unknown>
+  );
+
+  // Revenue category (score = revenue)
+  await createOrUpdateLeaderboardEntry(
+    startupId, startup.userId, startup.revenue,
+    startup.valuation, startup.revenue, monthsSurvived, outcome.outcome,
+    "revenue", "beta-season-1", leaderboardMetadata as Record<string, unknown>
+  );
+
+  // Valuation category (score = valuation)
+  await createOrUpdateLeaderboardEntry(
+    startupId, startup.userId, startup.valuation,
+    startup.valuation, startup.revenue, monthsSurvived, outcome.outcome,
+    "valuation", "beta-season-1", leaderboardMetadata as Record<string, unknown>
+  );
+
+  // Survival category (score = survivalMonths * 1000)
+  await createOrUpdateLeaderboardEntry(
+    startupId, startup.userId, monthsSurvived * 1000,
+    startup.valuation, startup.revenue, monthsSurvived, outcome.outcome,
+    "survival", "beta-season-1", leaderboardMetadata as Record<string, unknown>
+  );
+
+  // Playstyle category
+  if (finalDominantPlaystyle) {
+    const playstyleSlug = finalDominantPlaystyle.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    await createOrUpdateLeaderboardEntry(
+      startupId, startup.userId, leaderboardScore,
+      startup.valuation, startup.revenue, monthsSurvived, outcome.outcome,
+      playstyleSlug, "beta-season-1", leaderboardMetadata as Record<string, unknown>
+    );
   }
 
   // Phase 14: Founder coaching on final outcome
