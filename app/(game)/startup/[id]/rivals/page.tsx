@@ -38,18 +38,28 @@ export default async function RivalsPage({
             </h1>
           </div>
         </div>
-        <div className="game-card p-8 text-center hud-corner">
-          <p className="text-white/40 text-sm uppercase tracking-wider font-bold mb-2">
-            RIVALS LOCKED
+        <div className="game-card p-8 hud-corner space-y-4">
+          <div>
+            <p className="text-white/40 text-xs uppercase tracking-widest font-bold mb-1">
+              Unlocks After Funding
+            </p>
+            <h2 className="text-lg font-black text-white">Rival Founders Emerge Once You&apos;re Operating</h2>
+          </div>
+          <p className="text-white/60 text-sm leading-relaxed">
+            Rival startups are generated based on your sector, metrics, and strategy. They
+            react to your launches, copy your wins, and exploit your weak spots. Track rivalry
+            scores and defeat them before they outpace you.
           </p>
-          <p className="text-white/60 text-sm">
-            Rival startups emerge once your startup is funded and operating.
+          <p className="text-rose-400/70 text-xs italic">
+            &ldquo;Rivals react to your launches, callouts, and weak spots.&rdquo;
           </p>
-          <Link href={`/startup/${id}/pitch`}>
-            <div className="mt-6 inline-block px-6 py-3 border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-bold tracking-wider uppercase cursor-pointer hover:bg-cyan-500/20 transition-colors">
-              GO TO PITCH
-            </div>
-          </Link>
+          <div className="pt-2">
+            <Link href={`/startup/${id}/pitch`}>
+              <div className="inline-block px-6 py-3 border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-bold tracking-wider uppercase cursor-pointer hover:bg-cyan-500/20 transition-colors">
+                GO TO PITCH
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
     );

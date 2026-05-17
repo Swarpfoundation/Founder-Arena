@@ -38,17 +38,31 @@ export default async function DocumentaryPage({
             </h1>
           </div>
         </div>
-        <div className="game-card p-8 hud-corner text-center space-y-3">
-          <p className="text-white/60 text-sm font-bold tracking-wider uppercase">
-            Documentary Not Available
+        <div className="game-card p-8 hud-corner space-y-4">
+          <div>
+            <p className="text-white/40 text-xs uppercase tracking-widest font-bold mb-1">
+              Unlocks at Run End
+            </p>
+            <h2 className="text-lg font-black text-white">Your Documentary Generates When the Run Ends</h2>
+          </div>
+          <p className="text-white/60 text-sm leading-relaxed">
+            When your startup completes its 12-month run — or dies — Founder Arena generates
+            a documentary: narrative arc, key moments, rival battles, boardroom drama, and
+            final outcome. Every detail is pulled from your actual decisions.
           </p>
-          <p className="text-white/40 text-xs">
-            The founder documentary is generated when a startup run is finalized.
-            Complete or end your run to unlock this record.
+          <p className="text-violet-400/70 text-xs italic">
+            &ldquo;Every finished run becomes a founder documentary and career legacy.&rdquo;
           </p>
-          <Link href={`/startup/${id}`} className="inline-flex items-center gap-1 text-cyan-400 text-xs hover:text-cyan-300 transition-colors">
-            Back to startup
-          </Link>
+          <div className="flex items-center gap-3 pt-2">
+            <Link href={`/startup/${id}/operate`}>
+              <div className="inline-block px-5 py-2.5 border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-bold tracking-wider uppercase cursor-pointer hover:bg-cyan-500/20 transition-colors">
+                CONTINUE RUN
+              </div>
+            </Link>
+            <Link href={`/startup/${id}`} className="text-xs text-white/30 hover:text-white/60 transition-colors">
+              Back to overview
+            </Link>
+          </div>
         </div>
       </div>
     );

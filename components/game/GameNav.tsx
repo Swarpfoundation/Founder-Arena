@@ -17,6 +17,7 @@ import {
   Home,
   CreditCard,
   Star,
+  Zap,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -24,8 +25,9 @@ const navItems = [
   { path: "/dashboard", label: "COMMAND", icon: Crosshair },
   { path: "/startup/new", label: "DEPLOY", icon: Plus },
   { path: "/leaderboard", label: "RANKINGS", icon: Trophy },
-  { path: "/market", label: "INTEL", icon: TrendingUp },
   { path: "/career", label: "LEGACY", icon: Star },
+  { path: "/market", label: "INTEL", icon: TrendingUp },
+  { path: "/demo", label: "DEMO", icon: Zap },
   { path: "/profile", label: "OPERATIVE", icon: User },
   { path: "/graveyard", label: "FALLEN", icon: Skull },
   { path: "/billing", label: "BILLING", icon: CreditCard },

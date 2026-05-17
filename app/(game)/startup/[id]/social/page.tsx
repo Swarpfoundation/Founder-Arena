@@ -38,19 +38,27 @@ export default async function SocialPage({
             </h1>
           </div>
         </div>
-        <div className="game-card p-8 text-center hud-corner">
-          <p className="text-white/40 text-sm uppercase tracking-wider font-bold mb-2">
-            Arena Feed Locked
+        <div className="game-card p-8 hud-corner space-y-4">
+          <div>
+            <p className="text-white/40 text-xs uppercase tracking-widest font-bold mb-1">
+              Unlocks After Funding
+            </p>
+            <h2 className="text-lg font-black text-white">Social Pressure Starts After Funding</h2>
+          </div>
+          <p className="text-white/60 text-sm leading-relaxed">
+            Your startup&apos;s social presence — hype, trust, community, viral moments — goes
+            live once you&apos;re funded and operating. Every action ripples through your metrics.
           </p>
-          <p className="text-white/60 text-sm">
-            Social media actions are available once your startup is funded and
-            operating.
+          <p className="text-cyan-400/70 text-xs italic">
+            &ldquo;Social pressure turns attention into growth — or backlash.&rdquo;
           </p>
-          <Link href={`/startup/${id}/pitch`}>
-            <div className="mt-6 inline-block px-6 py-3 border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-bold tracking-wider uppercase cursor-pointer hover:bg-cyan-500/20 transition-colors">
-              GO TO PITCH
-            </div>
-          </Link>
+          <div className="pt-2">
+            <Link href={`/startup/${id}/pitch`}>
+              <div className="inline-block px-6 py-3 border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-bold tracking-wider uppercase cursor-pointer hover:bg-cyan-500/20 transition-colors">
+                GO TO PITCH
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
     );

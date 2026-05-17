@@ -342,30 +342,46 @@ function BoardMetricsPanel({ data }: { data: BoardroomPageData }) {
 function NoEventsState({ data }: { data: BoardroomPageData }) {
   const isFinalized = data.startupStatus === "dead" || data.startupStatus === "completed";
   return (
-    <div className="game-card p-8 text-center hud-corner">
-      <p className="text-white/40 text-sm uppercase tracking-wider font-bold mb-2">
-        {isFinalized ? "RUN COMPLETE" : "BOARDROOM CLEAR"}
-      </p>
-      <p className="text-white/60 text-sm">
-        {isFinalized
-          ? "This run is over. No open boardroom events."
-          : "No open boardroom events. Pressure events trigger when key metrics hit critical thresholds."}
-      </p>
-      {!isFinalized && (
-        <div className="mt-4 grid grid-cols-2 gap-2 max-w-xs mx-auto text-left">
-          {[
-            "Runway ≤ 2 months",
-            "Investor score ≤ 35",
-            "Brand risk ≥ 70",
-            "Risk score ≥ 85",
-            "No revenue by month 6",
-            "Burn rate > 3× revenue",
-          ].map((trigger) => (
-            <span key={trigger} className="text-[10px] text-white/40 font-mono">
-              → {trigger}
-            </span>
-          ))}
-        </div>
+    <div className="game-card p-8 hud-corner space-y-4">
+      <div>
+        <p className="text-white/40 text-xs uppercase tracking-widest font-bold mb-1">
+          {isFinalized ? "RUN COMPLETE" : "BOARDROOM CLEAR"}
+        </p>
+        <h2 className="text-lg font-black text-white">
+          {isFinalized
+            ? "No open boardroom events — run is finalized."
+            : "Boardroom is quiet. For now."}
+        </h2>
+      </div>
+      {isFinalized ? (
+        <p className="text-white/50 text-sm leading-relaxed">
+          This run ended without a pending boardroom crisis. View your career legacy or
+          start a new run to experience more boardroom pressure.
+        </p>
+      ) : (
+        <>
+          <p className="text-white/50 text-sm leading-relaxed">
+            Pressure events fire automatically when key metrics hit crisis thresholds.
+            Run more months to trigger them.
+          </p>
+          <p className="text-orange-400/70 text-xs italic">
+            &ldquo;Boardroom pressure tests whether investors still trust you.&rdquo;
+          </p>
+          <div className="grid grid-cols-2 gap-1.5 pt-1">
+            {[
+              "Runway ≤ 2 months",
+              "Investor score ≤ 35",
+              "Brand risk ≥ 70",
+              "Risk score ≥ 85",
+              "No revenue by month 6",
+              "Burn rate > 3× revenue",
+            ].map((trigger) => (
+              <span key={trigger} className="text-[10px] text-white/40 font-mono border border-white/5 px-2 py-1">
+                → {trigger}
+              </span>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

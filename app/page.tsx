@@ -129,12 +129,15 @@ export default function HomePage() {
           transition={{ delay: 1.2 }}
         >
           <p className="text-[10px] tracking-[0.4em] text-cyan-400/40 uppercase">
-            Closed Beta
+            Closed Beta · Season 1 Live
           </p>
           <p className="text-sm text-white/40 max-w-md text-center">
-            AI-powered startup simulator. Pitch ideas to AI VCs, raise simulated
-            funding, run your company through 12 months of crises and growth.
+            Startup roguelike. Pitch to AI VCs, raise funding, run 12 months of
+            crises, rivals, and boardroom battles. Every run becomes a documentary.
           </p>
+          <Link href="/demo" className="mt-2 text-xs text-cyan-400/50 hover:text-cyan-400 transition-colors tracking-widest uppercase underline underline-offset-4">
+            See how it works →
+          </Link>
         </motion.div>
       </div>
 

@@ -375,6 +375,22 @@ export default async function StartupProfilePage({ params }: { params: Promise<{
             <h3 className="text-sm font-bold text-white tracking-wider uppercase">Final Result</h3>
           </div>
           <div className="space-y-3">
+            {/* Run Legacy compact block */}
+            <div className="grid grid-cols-1 gap-1.5 border border-white/5 p-3 bg-white/[0.02]">
+              <div className="text-[9px] uppercase tracking-widest text-white/30 mb-1">Run Legacy</div>
+              <div className="flex items-center gap-1.5 text-xs text-white/50">
+                <span className="text-emerald-400">✓</span>
+                This run updated your Founder Career.
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-white/50">
+                <span className="text-violet-400">✓</span>
+                This run entered Beta Season 1.
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-white/50">
+                <span className="text-cyan-400">✓</span>
+                This run generated a Founder Documentary.
+              </div>
+            </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-white/40">Outcome</span>
               {startup.finalOutcome ? (
