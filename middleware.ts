@@ -9,6 +9,7 @@ const { auth } = NextAuth(authConfig);
 const PUBLIC_PATHS = new Set([
   "/",
   "/login",
+  "/register",
   "/pricing",
   "/market",
   "/leaderboard",

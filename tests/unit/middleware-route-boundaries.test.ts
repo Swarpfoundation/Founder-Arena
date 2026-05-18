@@ -11,6 +11,7 @@ import { describe, it, expect } from "vitest";
 const PUBLIC_PATHS = new Set([
   "/",
   "/login",
+  "/register",
   "/pricing",
   "/market",
   "/leaderboard",
@@ -29,6 +30,7 @@ const PUBLIC_PREFIXES = [
   "/f/",
   "/api/auth/",
   "/api/cron/",   // Vercel Cron: unauthenticated GET; each handler verifies CRON_SECRET
+  "/r/",
 ];
 
 function isPublicPath(pathname: string): boolean {
@@ -42,6 +44,7 @@ function isPublicPath(pathname: string): boolean {
 describe("middleware PUBLIC_PATHS exact matches", () => {
   it("allows root /", () => expect(isPublicPath("/")).toBe(true));
   it("allows /login", () => expect(isPublicPath("/login")).toBe(true));
+  it("allows /register as an OAuth signup alias", () => expect(isPublicPath("/register")).toBe(true));
   it("allows /pricing", () => expect(isPublicPath("/pricing")).toBe(true));
   it("allows /api/health", () => expect(isPublicPath("/api/health")).toBe(true));
   it("allows /api/webhooks/stripe (signature verified in handler)", () => {
@@ -70,6 +73,9 @@ describe("middleware PUBLIC_PREFIXES", () => {
   it("allows /api/cron/* so Vercel Cron reaches the CRON_SECRET handler", () => {
     expect(isPublicPath("/api/cron/market-snapshot")).toBe(true);
     expect(isPublicPath("/api/cron/generate-market-snapshot")).toBe(true);
+  });
+  it("allows /r/<code> referral capture links", () => {
+    expect(isPublicPath("/r/ABC123")).toBe(true);
   });
 });
 

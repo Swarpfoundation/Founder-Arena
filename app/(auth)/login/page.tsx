@@ -1,5 +1,8 @@
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import { signIn } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth-helpers";
+import { sanitizeAuthCallbackUrl } from "@/lib/auth-redirects";
 import { Chrome, Github } from "lucide-react";
 
 function getErrorMessage(error: string | undefined): string | null {
@@ -28,11 +31,14 @@ export default async function LoginPage({
 }) {
   const params = searchParams ? await searchParams : undefined;
   const error = getErrorMessage(params?.error);
+  const sanitizedCallback = sanitizeAuthCallbackUrl(params?.callbackUrl);
+  const user = await getCurrentUser();
+  if (user) {
+    redirect(sanitizedCallback);
+  }
+
   const baseUrl = process.env.AUTH_URL ?? "https://founder-arena-pi.vercel.app";
-  const rawCallback = params?.callbackUrl ?? "/dashboard";
-  const callbackUrl = rawCallback.startsWith("http")
-    ? rawCallback
-    : `${baseUrl}${rawCallback.startsWith("/") ? "" : "/"}${rawCallback}`;
+  const callbackUrl = `${baseUrl}${sanitizedCallback}`;
 
   return (
     <div className="relative min-h-screen bg-[#05050a] flex items-center justify-center overflow-hidden">
