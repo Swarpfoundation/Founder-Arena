@@ -118,11 +118,17 @@ export function getOperatingCosts(
   stage: string,
   teamSize: number,
   revenue: number,
-  userCount: number = 0
+  userCount: number = 0,
+  options: { excludeInfrastructureLikeCosts?: boolean } = {}
 ): { category: string; amount: number }[] {
   const results: { category: string; amount: number }[] = [];
+  const infrastructureLikeCategories = new Set(["ai_inference", "cloud_infra"]);
 
   for (const cat of OPERATING_COST_CATEGORIES) {
+    if (options.excludeInfrastructureLikeCosts && infrastructureLikeCategories.has(cat.id)) {
+      continue;
+    }
+
     const sectorNorm = sector.toLowerCase();
     const stageNorm = stage.toLowerCase().replace("-", "_");
 
@@ -171,8 +177,9 @@ export function getTotalOperatingCosts(
   stage: string,
   teamSize: number,
   revenue: number,
-  userCount?: number
+  userCount?: number,
+  options: { excludeInfrastructureLikeCosts?: boolean } = {}
 ): number {
-  const breakdown = getOperatingCosts(sector, stage, teamSize, revenue, userCount);
+  const breakdown = getOperatingCosts(sector, stage, teamSize, revenue, userCount, options);
   return breakdown.reduce((sum, b) => sum + b.amount, 0);
 }

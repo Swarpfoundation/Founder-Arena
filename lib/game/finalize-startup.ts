@@ -8,6 +8,12 @@ import { classifyFinalOutcome, calculateLeaderboardScore } from "@/lib/simulatio
 import { calculateTotalBurn } from "@/lib/economy/cost-engine";
 import { ai } from "@/lib/ai";
 import type { SeniorityLevel } from "@/lib/economy/types";
+import {
+  buildInfrastructurePreviewInputForStartup,
+  calculateRuntimeInfrastructureBurn,
+  parseInfrastructureState,
+  syncCloudCreditBalancesFromOffers,
+} from "@/lib/infrastructure";
 
 export interface FinalizationResult {
   outcome: string;
@@ -38,6 +44,10 @@ export async function finalizeStartup(startupId: string): Promise<FinalizationRe
       fundingRounds: true,
       leaderboardEntries: true,
       missions: { orderBy: { sequence: "asc" } },
+      growthOffers: {
+        where: { offerType: "cloud_credits", status: "accepted" },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -69,7 +79,7 @@ export async function finalizeStartup(startupId: string): Promise<FinalizationRe
   const finalMonth = history[history.length - 1];
 
   // Compute true monthly burn from the cost engine (payroll + office +
-  // sector operating costs) so capital efficiency in the final outcome
+  // sector operating costs + runtime infrastructure burn) so capital efficiency in the final outcome
   // reflects the burn the user actually fought, not the stored baseBurn.
   const activeEmployeesForBurn = startup.employees
     .filter((e) => e.status === "active")
@@ -78,13 +88,58 @@ export async function finalizeStartup(startupId: string): Promise<FinalizationRe
       seniority: e.seniority as SeniorityLevel,
       region: startup.region,
     }));
+  const infraPreviewInput = buildInfrastructurePreviewInputForStartup({
+    startup: {
+      id: startup.id,
+      sector: startup.sector,
+      stage: startup.stage,
+      status: startup.status,
+      monetizationModel: startup.monetizationModel,
+      description: startup.description,
+      problem: startup.problem,
+      solution: startup.solution,
+      productProgress: startup.productProgress,
+      revenue: startup.revenue,
+      riskScore: startup.riskScore,
+      simulationMonths: startup.simulationMonths,
+    },
+    cloudCreditOffers: startup.growthOffers.map((offer) => ({
+      id: offer.id,
+      amount: offer.amount,
+      status: offer.status,
+      sourceOfferId: offer.id,
+    })),
+    currentSprint: Math.max(1, Math.min(12, history.length || 12)),
+  });
+  const infrastructureState = syncCloudCreditBalancesFromOffers(
+    parseInfrastructureState(startup.aiAnalysis),
+    infraPreviewInput.cloudCreditOffers ?? [],
+    Math.max(1, Math.min(12, history.length || 12)),
+    startup.id
+  );
+  const runtimeInfraBurn = calculateRuntimeInfrastructureBurn(infraPreviewInput, {
+    selectedStackId: infrastructureState.selectedStackId,
+    creditBalances: infrastructureState.creditBalances,
+  });
   const trueBurnEstimate = calculateTotalBurn(
     activeEmployeesForBurn,
     startup.workSetup,
     startup.sector,
     startup.stage,
     startup.revenue,
-    0
+    0,
+    undefined,
+    runtimeInfraBurn.runtimeMonthlyInfraBurn,
+    {
+      sourceStackId: runtimeInfraBurn.sourceStackId,
+      version: runtimeInfraBurn.version,
+      warnings: runtimeInfraBurn.warnings,
+      explanation: runtimeInfraBurn.explanation,
+      grossInfrastructureCostsMonthly: runtimeInfraBurn.grossInfraBurn,
+      aiApiCostsMonthly: runtimeInfraBurn.aiApiBurn,
+      complianceCostsMonthly: runtimeInfraBurn.complianceBurn,
+      cloudCreditsAppliedMonthly: runtimeInfraBurn.creditsApplied,
+    }
   );
   const trueMonthlyBurn = trueBurnEstimate.totalMonthlyBurn;
 

@@ -20,7 +20,12 @@
     "demo:reset": "tsx scripts/seed-founder-arena-demo.ts --reset-only --confirm-demo-reset",
     "demo:reseed": "tsx scripts/seed-founder-arena-demo.ts --confirm-demo-reset",
     "smoke": "node scripts/smoke.mjs",
-    "smoke:db": "tsx scripts/db-smoke.ts"
+    "smoke:db": "tsx scripts/db-smoke.ts",
+    "review:worker": "NODE_OPTIONS=--conditions=react-server tsx scripts/review-worker.ts",
+    "review:worker:once": "NODE_OPTIONS=--conditions=react-server tsx scripts/review-worker.ts --once",
+    "review:check-env": "tsx scripts/check-ai-review-env.ts",
+    "review:queue:inspect": "NODE_OPTIONS=--conditions=react-server tsx scripts/review-queue-inspect.ts",
+    "review:deepseek:smoke": "NODE_OPTIONS=--conditions=react-server tsx scripts/deepseek-live-smoke.ts"
   },
   "postinstall": "prisma generate",
   "dependencies": {

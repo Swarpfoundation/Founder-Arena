@@ -203,6 +203,8 @@ Not included in v0.1:
 
 ## Phase 16C Integration Path
 
+Phase 16C added a dry-run player-facing preview route at `/startup/[id]/infrastructure`. Phase 16D now applies conservative runtime infrastructure burn to live Monthly Burn through the existing burn path. The model remains static, deterministic, capped, and based on gameplay archetypes rather than exact provider billing.
+
 Recommended next phase:
 
 1. Add a read-only Infra Stack panel to a startup page.
@@ -217,4 +219,3 @@ Phase 16C must preserve the existing single-writer burn invariant.
 ## Pricing Disclaimer
 
 This is a static gameplay model based on official pricing research accessed on 2026-05-17. Provider prices, plans, quotas, credits, regions, and product names change often. Ranges must be revisited periodically and should never be presented as live billing accuracy.
-

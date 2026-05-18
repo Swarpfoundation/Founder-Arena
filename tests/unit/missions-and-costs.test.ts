@@ -319,6 +319,42 @@ describe("Cost Engine", () => {
     );
   });
 
+  it("adds infrastructure burn exactly once in total burn", () => {
+    const estimate = calculateTotalBurn(
+      [{ role: "CTO", seniority: "senior" as SeniorityLevel }],
+      "remote",
+      "AI / ML",
+      "seed",
+      0,
+      0,
+      5000,
+      1200,
+      {
+        sourceStackId: "ai_heavy_stack",
+        version: "test",
+        warnings: [],
+        explanation: [],
+        grossInfrastructureCostsMonthly: 1800,
+        aiApiCostsMonthly: 700,
+        complianceCostsMonthly: 0,
+        cloudCreditsAppliedMonthly: 600,
+      }
+    );
+
+    expect(estimate.infrastructureCostsMonthly).toBe(1200);
+    expect(estimate.aiApiCostsMonthly).toBe(700);
+    expect(estimate.cloudCreditsAppliedMonthly).toBe(600);
+    expect(estimate.operatingBreakdown.map((item) => item.category)).not.toContain("AI Inference / API");
+    expect(estimate.operatingBreakdown.map((item) => item.category)).not.toContain("Cloud Infrastructure");
+    expect(estimate.totalMonthlyBurn).toBe(
+      estimate.payrollMonthly +
+        estimate.officeMonthly +
+        estimate.operatingCostsMonthly +
+        estimate.missionCostsMonthly +
+        estimate.infrastructureCostsMonthly
+    );
+  });
+
   it("calculates runway with real cash", () => {
     const result = calculateRunwayWithCosts(
       300000,
@@ -406,6 +442,51 @@ describe("Phase 25: Cost Engine Source-of-Truth", () => {
     expect(result.costBreakdown).toBeDefined();
     expect(result.costBreakdown!.missionCosts).toBe(5000);
     expect(result.burnRate).toBeGreaterThan(state.monthlyBurn + result.costBreakdown!.operatingCosts);
+  });
+
+  it("simulateMonth includes infrastructure burn once and updates runway through burnRate", () => {
+    const state = {
+      cash: 120000,
+      monthlyBurn: 20000,
+      revenue: 0,
+      valuation: 2000000,
+      productProgress: 40,
+      investorScore: 50,
+      marketScore: 50,
+      riskScore: 30,
+    };
+
+    const withInfra = simulateMonth(
+      state,
+      [],
+      null,
+      "AI / ML",
+      [],
+      "remote",
+      undefined,
+      1,
+      undefined,
+      "seed",
+      0,
+      1500,
+      {
+        grossInfrastructureCosts: 2000,
+        aiApiCosts: 900,
+        complianceCosts: 0,
+        cloudCreditsApplied: 500,
+      }
+    );
+
+    expect(withInfra.costBreakdown!.infrastructureCosts).toBe(1500);
+    expect(withInfra.costBreakdown!.aiApiCosts).toBe(900);
+    expect(withInfra.costBreakdown!.total).toBe(withInfra.burnRate);
+    expect(withInfra.burnRate).toBe(
+      withInfra.costBreakdown!.baseBurn +
+        withInfra.costBreakdown!.operatingCosts +
+        withInfra.costBreakdown!.missionCosts +
+        withInfra.costBreakdown!.infrastructureCosts!
+    );
+    expect(withInfra.runwayMonths).toBe(Math.floor(withInfra.cashEnd / withInfra.burnRate));
   });
 
   it("stores baseBurn in costBreakdown correctly", () => {

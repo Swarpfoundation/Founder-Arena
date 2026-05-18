@@ -608,13 +608,24 @@ export function OperateClient({
               { label: "Payroll", value: costBreakdown.payrollMonthly, color: "text-cyan-400" },
               { label: "Office", value: costBreakdown.officeMonthly, color: "text-amber-400" },
               { label: "Operating", value: costBreakdown.operatingCostsMonthly, color: "text-violet-400" },
+              ...(costBreakdown.infrastructureCostsMonthly > 0
+                ? [{ label: "Infrastructure", value: costBreakdown.infrastructureCostsMonthly, color: "text-cyan-400" }]
+                : []),
+              ...(costBreakdown.aiApiCostsMonthly > 0
+                ? [{ label: "AI/API", value: costBreakdown.aiApiCostsMonthly, color: "text-amber-400" }]
+                : []),
+              ...(costBreakdown.cloudCreditsAppliedMonthly > 0
+                ? [{ label: "Cloud Credits", value: -costBreakdown.cloudCreditsAppliedMonthly, color: "text-emerald-400" }]
+                : []),
               ...(costBreakdown.missionCostsMonthly > 0
                 ? [{ label: "Mission", value: costBreakdown.missionCostsMonthly, color: "text-emerald-400" }]
                 : []),
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between text-xs">
                 <span className="text-white/40">{item.label}</span>
-                <span className={`font-bold ${item.color}`}>${(item.value / 1000).toFixed(1)}K</span>
+                <span className={`font-bold ${item.color}`}>
+                  {item.value < 0 ? "-" : ""}${(Math.abs(item.value) / 1000).toFixed(1)}K
+                </span>
               </div>
             ))}
             <div className="h-px bg-white/10 my-2" />
@@ -626,6 +637,11 @@ export function OperateClient({
               <div className="flex items-center justify-between text-xs">
                 <span className="text-white/40">Net Burn</span>
                 <span className="font-bold text-rose-400">${(Math.max(0, costBreakdown.totalMonthlyBurn - revenue) / 1000).toFixed(1)}K/mo</span>
+              </div>
+            )}
+            {costBreakdown.infrastructureBreakdown?.warnings?.some((warning) => warning.toLowerCase().includes("credit")) && (
+              <div className="mt-3 border border-amber-500/20 bg-amber-500/10 p-2 text-[10px] leading-relaxed text-amber-100/70">
+                {costBreakdown.infrastructureBreakdown.warnings.find((warning) => warning.toLowerCase().includes("credit"))}
               </div>
             )}
           </div>

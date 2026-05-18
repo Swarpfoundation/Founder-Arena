@@ -8,6 +8,7 @@ export type SocialChannel =
 export type SocialActorType =
   | "founder"
   | "team"
+  | "operations"
   | "investor"
   | "customer"
   | "rival"
@@ -33,6 +34,8 @@ export type FeedItemCategory =
   | "press"
   | "viral"
   | "crisis"
+  | "infrastructure"
+  | "operations"
   | "rival"
   | "milestone";
 

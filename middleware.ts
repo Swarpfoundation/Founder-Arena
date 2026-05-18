@@ -32,6 +32,7 @@ const PUBLIC_PREFIXES = [
   "/api/auth/", // Auth.js: sign-in, callback, signout, session, csrf
   "/api/cron/", // Cron endpoints: Vercel Cron runs unauthenticated; each handler
                 // enforces CRON_SECRET (≥16 chars) before doing any work.
+  "/r/",         // Referral capture links set a short-lived attribution cookie.
 ];
 
 function isPublicPath(pathname: string): boolean {

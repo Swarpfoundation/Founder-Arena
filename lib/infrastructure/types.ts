@@ -149,6 +149,29 @@ export interface InfrastructureBurnEstimate {
   warnings: string[];
 }
 
+export interface RuntimeInfrastructureBurnEstimate {
+  sourceStackId: string;
+  version: string;
+  runtimeMonthlyInfraBurn: number;
+  grossInfraBurn: number;
+  uncappedGrossInfraBurn: number;
+  creditsApplied: number;
+  aiApiBurn: number;
+  complianceBurn: number;
+  capApplied: number | null;
+  riskModifiersPreview: {
+    reliabilityRisk: number;
+    scalingRisk: number;
+    securityRisk: number;
+    billShockRisk: number;
+    outageRisk: number;
+    investorTrustModifier: number;
+    riskScoreModifier: number;
+  };
+  explanation: string[];
+  warnings: string[];
+}
+
 export interface CloudCreditApplication {
   creditsApplied: number;
   updatedCredits: CloudCreditGrant[];
@@ -166,4 +189,3 @@ export interface InfrastructureEventDefinition {
   warningCopy: string;
   tags: string[];
 }
-

@@ -174,22 +174,23 @@ export function buildTimeline(input: DocumentaryEngineInput): DocumentaryTimelin
   // Social feed items
   if (socialState) {
     const topSocialItems = [...socialState.feedItems]
-      .filter(fi => fi.severity === "critical" || fi.category === "viral" || fi.category === "milestone")
+      .filter(fi => fi.severity === "critical" || fi.category === "viral" || fi.category === "milestone" || fi.category === "infrastructure" || fi.category === "operations")
       .sort((a, b) => (SEVERITY_WEIGHT[b.severity] ?? 0) - (SEVERITY_WEIGHT[a.severity] ?? 0))
       .slice(0, 3);
 
     topSocialItems.forEach((fi, i) => {
       const isNeg = fi.severity === "critical" || fi.category === "crisis";
+      const isInfra = fi.category === "infrastructure" || fi.category === "operations";
       const desc = fi.body.length > 120 ? fi.body.slice(0, 120) + "..." : fi.body;
       add(moment(
         `social-${fi.id ?? i}`,
         fi.month,
         fi.title,
         desc,
-        "social",
+        isInfra ? "infrastructure" : "social",
         isNeg ? "negative" : "positive",
-        "social",
-        fi.severity === "critical" ? 72 : 60
+        isInfra ? "infrastructure" : "social",
+        fi.severity === "critical" ? 72 : isInfra ? 66 : 60
       ));
     });
 

@@ -9,6 +9,8 @@ import { db } from "@/lib/db";
 import { getPlanConfig } from "./plans";
 import { getUserPlan, checkAiReviewEntitlement } from "./entitlements";
 import { getWallet, spendToken } from "./credits";
+import { getEffectiveReviewReadyAt } from "@/lib/rewards/rewarded-review-acceleration";
+import { getWeeklySubmissionStatus, type WeeklySubmissionStatus } from "@/lib/growth/submission-limits";
 
 export interface ReviewAccessResult {
   canSubmit: boolean;
@@ -19,6 +21,7 @@ export interface ReviewAccessResult {
   monthlyQuotaLimit: number;
   speedTokensAvailable: number;
   canBypassWithToken: boolean;
+  weeklySubmission: WeeklySubmissionStatus;
 }
 
 export async function getReviewAccess(userId: string, _startupId?: string): Promise<ReviewAccessResult> {
@@ -32,9 +35,14 @@ export async function getReviewAccess(userId: string, _startupId?: string): Prom
   const isFirstReview = totalReviews === 0;
 
   // Check monthly quota
-  const entitlement = await checkAiReviewEntitlement(userId);
-  const monthlyQuotaRemaining = entitlement.remaining ?? 0;
-  const monthlyQuotaLimit = entitlement.limit ?? 0;
+  const [entitlement, weeklySubmission] = await Promise.all([
+    checkAiReviewEntitlement(userId),
+    getWeeklySubmissionStatus(userId),
+  ]);
+  const monthlyQuotaRemaining =
+    entitlement.remaining && Number.isFinite(entitlement.remaining) ? entitlement.remaining : 0;
+  const monthlyQuotaLimit =
+    entitlement.limit && Number.isFinite(entitlement.limit) ? entitlement.limit : 0;
 
   // Check cooldown (skip for first review or if no cooldown configured)
   let cooldownRemainingSeconds = 0;
@@ -45,13 +53,19 @@ export async function getReviewAccess(userId: string, _startupId?: string): Prom
   // Check speed tokens
   const wallet = await getWallet(userId);
   const speedTokensAvailable = wallet?.speedTokens ?? 0;
-  const canBypassWithToken = speedTokensAvailable > 0 && (!entitlement.allowed || cooldownRemainingSeconds > 0);
+  const canBypassWithToken =
+    speedTokensAvailable > 0 &&
+    weeklySubmission.canSubmit &&
+    (!entitlement.allowed || cooldownRemainingSeconds > 0);
 
   // Determine if submit is allowed
   let canSubmit = true;
   let reason: string | undefined;
 
-  if (isFirstReview) {
+  if (!weeklySubmission.canSubmit) {
+    canSubmit = false;
+    reason = weeklySubmission.reason;
+  } else if (isFirstReview) {
     canSubmit = true;
   } else if (entitlement.allowed && cooldownRemainingSeconds === 0) {
     canSubmit = true;
@@ -74,6 +88,7 @@ export async function getReviewAccess(userId: string, _startupId?: string): Prom
     monthlyQuotaLimit,
     speedTokensAvailable,
     canBypassWithToken,
+    weeklySubmission,
   };
 }
 
@@ -81,13 +96,19 @@ export async function getCooldownRemaining(userId: string, cooldownSeconds: numb
   const latestReview = await db.vcReview.findFirst({
     where: { startup: { userId } },
     orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
+    select: { id: true, startupId: true, createdAt: true, rawResponse: true },
   });
 
   if (!latestReview) return 0;
 
-  const elapsed = (Date.now() - latestReview.createdAt.getTime()) / 1000;
-  return Math.max(0, cooldownSeconds - elapsed);
+  const readyAt = getEffectiveReviewReadyAt({
+    reviewId: latestReview.id,
+    startupId: latestReview.startupId,
+    reviewCreatedAt: latestReview.createdAt,
+    rawResponse: latestReview.rawResponse,
+    cooldownSeconds,
+  });
+  return Math.max(0, Math.ceil((readyAt.getTime() - Date.now()) / 1000));
 }
 
 export async function enqueueReview(

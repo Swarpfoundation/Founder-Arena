@@ -20,6 +20,7 @@ export type StrategySignalSource =
   | "social_action"
   | "rival_counter_action"
   | "mission"
+  | "infrastructure_event"
   | "outcome";
 
 // ─── Signal ───────────────────────────────────────────────────────────────────

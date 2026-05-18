@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { savePitchDeckAction, submitPitchForReviewAction, getStartupById } from "@/lib/actions/startup";
 import { checkReviewAccessAction } from "@/lib/actions/review-queue";
+import {
+  getRewardedReviewAccelerationOfferAction,
+  type RewardedReviewAccelerationOffer,
+} from "@/lib/actions/rewarded-review-acceleration";
 import { pitchDeckSchema } from "@/lib/validations";
 import { generatePitchDraft, PITCH_QUALITY_HINTS } from "@/lib/onboarding/pitch-draft";
 import { Input } from "@/components/ui/input";
@@ -12,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { GameCard } from "@/components/game/GameCard";
 import { StartupRunHud } from "@/components/game/StartupRunHud";
 import { PageReveal } from "@/components/game/PageReveal";
+import { RewardedReviewAccelerator } from "@/components/game/RewardedReviewAccelerator";
 import { z } from "zod";
 import {
   Wand2,
@@ -59,7 +64,21 @@ export default function PitchBuilderPage({ params }: { params: Promise<{ id: str
     monthlyQuotaLimit: number;
     speedTokensAvailable: number;
     canBypassWithToken: boolean;
+    weeklySubmission: {
+      planId: "free" | "pro" | "max";
+      isPaid: boolean;
+      windowStart: Date | string;
+      windowEnd: Date | string;
+      usedCount: number;
+      freeLimit: number;
+      remainingFreeSubmissions: number;
+      submissionCreditsAvailable: number;
+      canSubmit: boolean;
+      willUseCredit: boolean;
+      reason?: string;
+    };
   } | null>(null);
+  const [rewardOffer, setRewardOffer] = useState<RewardedReviewAccelerationOffer | null>(null);
   const [startupData, setStartupData] = useState<{
     name: string;
     sector: string;
@@ -104,8 +123,19 @@ export default function PitchBuilderPage({ params }: { params: Promise<{ id: str
         });
       }
     });
-    checkReviewAccessAction(startupId).then(setReviewAccess);
+    refreshReviewAccess();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startupId]);
+
+  async function refreshReviewAccess() {
+    if (!startupId) return;
+    const [access, offer] = await Promise.all([
+      checkReviewAccessAction(startupId),
+      getRewardedReviewAccelerationOfferAction(startupId),
+    ]);
+    setReviewAccess(access);
+    setRewardOffer(offer);
+  }
 
   function applyDraft() {
     if (!startupData) return;
@@ -167,6 +197,12 @@ export default function PitchBuilderPage({ params }: { params: Promise<{ id: str
   const cooldownMinutes = reviewAccess
     ? Math.ceil(reviewAccess.cooldownRemainingSeconds / 60)
     : 0;
+  const weeklyResetDate = reviewAccess?.weeklySubmission
+    ? new Date(reviewAccess.weeklySubmission.windowEnd).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      })
+    : null;
 
   return (
     <PageReveal className="max-w-3xl mx-auto pt-24 pb-12 px-4 md:px-8">
@@ -232,11 +268,29 @@ export default function PitchBuilderPage({ params }: { params: Promise<{ id: str
             <p className="text-[10px] tracking-[0.2em] text-white/40">REVIEW STATUS</p>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            <div>
-              <p className="text-sm text-white/60">
-                Monthly quota: <span className="text-white font-bold">{reviewAccess.monthlyQuotaRemaining}</span> / {reviewAccess.monthlyQuotaLimit} remaining
-              </p>
-            </div>
+            {reviewAccess.weeklySubmission.isPaid ? (
+              <div>
+                <p className="text-sm text-white/60">
+                  Plan access: <span className="text-white font-bold">Unlimited VC review submissions</span>
+                </p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm text-white/60">
+                  Weekly reviews:{" "}
+                  <span className="text-white font-bold">
+                    {reviewAccess.weeklySubmission.remainingFreeSubmissions}
+                  </span>{" "}
+                  / {reviewAccess.weeklySubmission.freeLimit} remaining
+                  {weeklyResetDate ? <span className="text-white/35"> · resets {weeklyResetDate}</span> : null}
+                </p>
+              </div>
+            )}
+            {!reviewAccess.weeklySubmission.isPaid && (
+              <div className="text-emerald-400 text-sm">
+                {reviewAccess.weeklySubmission.submissionCreditsAvailable} referral review credits
+              </div>
+            )}
             {reviewAccess.cooldownRemainingSeconds > 0 && (
               <div className="flex items-center gap-2 text-amber-400 text-sm">
                 <AlertTriangle className="w-4 h-4" />
@@ -250,7 +304,7 @@ export default function PitchBuilderPage({ params }: { params: Promise<{ id: str
               </div>
             )}
           </div>
-          {!reviewAccess.canSubmit && reviewAccess.monthlyQuotaRemaining <= 0 && (
+          {!reviewAccess.canSubmit && !reviewAccess.weeklySubmission.canSubmit && (
             <div className="mt-3 flex items-center gap-3">
               <button
                 type="button"
@@ -259,6 +313,22 @@ export default function PitchBuilderPage({ params }: { params: Promise<{ id: str
               >
                 <ExternalLink className="w-3 h-3 inline mr-1" /> UPGRADE PLAN
               </button>
+              <button
+                type="button"
+                onClick={() => router.push("/referrals")}
+                className="px-4 py-2 border border-emerald-400/30 text-emerald-400 text-xs tracking-wider hover:bg-emerald-400/10 transition-all"
+              >
+                INVITE FOR CREDITS
+              </button>
+            </div>
+          )}
+          {reviewAccess.cooldownRemainingSeconds > 0 && rewardOffer && (
+            <div className="mt-4">
+              <RewardedReviewAccelerator
+                startupId={startupId}
+                offer={rewardOffer}
+                onRefresh={refreshReviewAccess}
+              />
             </div>
           )}
         </div>

@@ -21,6 +21,7 @@ import { MonthOneBriefing } from "@/components/game/MonthOneBriefing";
 import { cn } from "@/lib/utils";
 import { buildFinalResultCtas, getOutcomeCeremony } from "@/lib/gamefeel/ceremony";
 import { buildDeathWarningPresentations } from "@/lib/gamefeel/critical-events";
+import { buildInfrastructureEventPresentation } from "@/lib/infrastructure";
 import {
   getDemoDayLabel,
   getFinalVerdictLabel,
@@ -146,6 +147,30 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
           teamSize={startup.employees.filter((employee) => employee.status === "active").length}
           className="mb-8"
         />
+
+        {simState.openInfrastructureEvent && (
+          <GameCard glow={simState.openInfrastructureEvent.severity === "critical" ? "rose" : "amber"} className="mb-8 border-amber-500/20 hud-corner">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-400/70">Infrastructure Event Open</p>
+                <h2 className="mt-1 text-lg font-black uppercase tracking-tight text-white">{simState.openInfrastructureEvent.title}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-white/45">{simState.openInfrastructureEvent.triggerReason}</p>
+                <p className="mt-2 text-xs font-bold uppercase tracking-wider text-white/35">
+                  Resolve before the next sprint to keep burn, risk, and investor confidence from compounding.
+                </p>
+              </div>
+              <Link href={`/startup/${id}/infrastructure`} className="border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs font-black uppercase tracking-wider text-amber-300 hover:bg-amber-500/20">
+                Resolve In Infra Console
+              </Link>
+            </div>
+          </GameCard>
+        )}
+
+        {simState.openInfrastructureEvent && (
+          <div className="mb-8">
+            <EventImpactBanner event={buildInfrastructureEventPresentation({ startupId: id, event: simState.openInfrastructureEvent })} />
+          </div>
+        )}
 
         {/* Top Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
@@ -275,6 +300,12 @@ async function FinalOutcome({ startupId }: { startupId: string }) {
 
   const { classifyFinalOutcome } = await import("@/lib/simulation/engine");
   const { calculateTotalBurn } = await import("@/lib/economy/cost-engine");
+  const {
+    buildInfrastructurePreviewInputForStartup,
+    calculateRuntimeInfrastructureBurn,
+    parseInfrastructureState,
+    syncCloudCreditBalancesFromOffers,
+  } = await import("@/lib/infrastructure");
   type SeniorityLevel = "junior" | "mid" | "senior" | "lead";
 
   // Use true monthly burn (payroll + office + operating) so capital
@@ -286,13 +317,52 @@ async function FinalOutcome({ startupId }: { startupId: string }) {
       seniority: e.seniority as SeniorityLevel,
       region: startup.region,
     }));
+  const cloudCreditOffers = await db.growthOffer.findMany({
+    where: { startupId, offerType: "cloud_credits", status: "accepted" },
+    orderBy: { createdAt: "desc" },
+  });
+  const infraPreviewInput = buildInfrastructurePreviewInputForStartup({
+    startup: {
+      id: startup.id,
+      sector: startup.sector,
+      stage: startup.stage,
+      status: startup.status,
+      monetizationModel: startup.monetizationModel,
+      description: startup.description,
+      problem: startup.problem,
+      solution: startup.solution,
+      productProgress: startup.productProgress,
+      revenue: startup.revenue,
+      riskScore: startup.riskScore,
+      simulationMonths: startup.simulationMonths,
+    },
+    cloudCreditOffers: cloudCreditOffers.map((offer) => ({
+      id: offer.id,
+      amount: offer.amount,
+      status: offer.status,
+      sourceOfferId: offer.id,
+    })),
+    currentSprint: Math.max(1, Math.min(12, history.length || 12)),
+  });
+  const infrastructureState = syncCloudCreditBalancesFromOffers(
+    parseInfrastructureState(startup.aiAnalysis),
+    infraPreviewInput.cloudCreditOffers ?? [],
+    Math.max(1, Math.min(12, history.length || 12)),
+    startup.id
+  );
+  const runtimeInfraBurn = calculateRuntimeInfrastructureBurn(infraPreviewInput, {
+    selectedStackId: infrastructureState.selectedStackId,
+    creditBalances: infrastructureState.creditBalances,
+  });
   const trueBurn = calculateTotalBurn(
     activeEmployees,
     startup.workSetup,
     startup.sector,
     startup.stage,
     startup.revenue,
-    0
+    0,
+    undefined,
+    runtimeInfraBurn.runtimeMonthlyInfraBurn
   ).totalMonthlyBurn;
 
   const state = {

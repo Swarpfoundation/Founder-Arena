@@ -11,6 +11,7 @@ import { deriveStartupMarketExposure } from "@/lib/market/exposure";
 import { getCurrentMarketSnapshot } from "@/lib/market/snapshot-service";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { consumeWeeklySubmissionAllowance } from "@/lib/growth/submission-limits";
 
 /**
  * Check if the user can submit a pitch review right now.
@@ -18,7 +19,15 @@ import { revalidatePath } from "next/cache";
  */
 export async function checkReviewAccessAction(startupId: string) {
   const user = await requireCurrentUser();
-  return getReviewAccess(user.id, startupId);
+  const access = await getReviewAccess(user.id, startupId);
+  return {
+    ...access,
+    weeklySubmission: {
+      ...access.weeklySubmission,
+      windowStart: access.weeklySubmission.windowStart.toISOString(),
+      windowEnd: access.weeklySubmission.windowEnd.toISOString(),
+    },
+  };
 }
 
 /**
@@ -152,6 +161,11 @@ export async function submitPitchForReviewWithBillingAction(
     },
   });
 
+  await consumeWeeklySubmissionAllowance({
+    userId: user.id,
+    startupId,
+    pitchDeckUpdatedAt: startup.pitchDeck.updatedAt,
+  });
   await recordUsage(user.id, "vcReview", 1);
 
   revalidatePath(`/startup/${startupId}/review`);

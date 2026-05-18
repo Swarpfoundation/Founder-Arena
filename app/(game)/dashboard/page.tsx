@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { getUserStartups } from "@/lib/actions/startup";
+import { captureReferralFromCookie } from "@/lib/actions/referrals";
 import { getOrCreateFounderProfile } from "@/lib/game/founder-progression";
 import { getOnboardingProgress } from "@/lib/onboarding/progress";
 import { db } from "@/lib/db";
@@ -171,6 +172,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const user = await requireCurrentUser();
+  await captureReferralFromCookie();
   const [profile, startups, onboardingProgress] = await Promise.all([
     getOrCreateFounderProfile(user.id),
     getUserStartups(),

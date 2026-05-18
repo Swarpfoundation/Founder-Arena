@@ -54,13 +54,32 @@ import {
 import { buildBoardroomTriggerFeedItem } from "@/lib/boardroom/boardroom-feed";
 import type { BoardroomTriggerContext } from "@/lib/boardroom/types";
 import { computeStatDeltas } from "@/lib/gamefeel/ceremony";
+import {
+  buildInfrastructurePreviewInputForStartup,
+  appendInfrastructureFeedItems,
+  buildInfrastructureEventTriggerFeedItem,
+  calculateRuntimeInfrastructureBurn,
+  mergeInfrastructureStateIntoAiAnalysis,
+  parseInfrastructureState,
+  selectInfrastructureEventForSprint,
+  syncCloudCreditBalancesFromOffers,
+} from "@/lib/infrastructure";
 
 export async function getSimulationState(startupId: string) {
   const user = await requireCurrentUser();
 
   const startup = await db.startup.findUnique({
     where: { id: startupId },
-    include: { simulationMonths: { orderBy: { monthNumber: "asc" } }, fundingRounds: true, employees: true, missions: { orderBy: { sequence: "asc" } } },
+    include: {
+      simulationMonths: { orderBy: { monthNumber: "asc" } },
+      fundingRounds: true,
+      employees: true,
+      missions: { orderBy: { sequence: "asc" } },
+      growthOffers: {
+        where: { offerType: "cloud_credits", status: "accepted" },
+        orderBy: { createdAt: "desc" },
+      },
+    },
   });
 
   if (!startup || startup.userId !== user.id) {
@@ -160,13 +179,62 @@ export async function getSimulationState(startupId: string) {
 
   // Phase 25: Compute true recurring burn for display and advisor
   const activeEmployeeList = startup.employees.filter((e) => e.status === "active");
+  const infraPreviewInput = buildInfrastructurePreviewInputForStartup({
+    startup: {
+      id: startup.id,
+      sector: startup.sector,
+      stage: startup.stage,
+      status: startup.status,
+      monetizationModel: startup.monetizationModel,
+      description: startup.description,
+      problem: startup.problem,
+      solution: startup.solution,
+      productProgress: startup.productProgress,
+      revenue: startup.revenue,
+      riskScore: startup.riskScore,
+      simulationMonths: startup.simulationMonths,
+    },
+    cloudCreditOffers: startup.growthOffers.map((offer) => ({
+      id: offer.id,
+      amount: offer.amount,
+      status: offer.status,
+      sourceOfferId: offer.id,
+    })),
+    currentSprint: currentMonth + 1,
+  });
+  const infrastructureState = syncCloudCreditBalancesFromOffers(
+    parseInfrastructureState(startup.aiAnalysis),
+    infraPreviewInput.cloudCreditOffers ?? [],
+    currentMonth + 1,
+    startup.id
+  );
+  const runtimeInfraBurn = calculateRuntimeInfrastructureBurn(infraPreviewInput, {
+    selectedStackId: infrastructureState.selectedStackId,
+    creditBalances: infrastructureState.creditBalances,
+  });
+  const infrastructureStateForDisplay = {
+    ...infrastructureState,
+    creditBalances: runtimeInfraBurn.creditBalances ?? infrastructureState.creditBalances,
+  };
   const trueBurnEstimate = calculateTotalBurn(
     activeEmployeeList.map((e) => ({ role: e.role, seniority: e.seniority as import("@/lib/economy/types").SeniorityLevel, region: startup.region })),
     startup.workSetup,
     startup.sector,
     startup.stage,
     startup.revenue,
-    activeMission?.monthlyCostDelta ?? 0
+    activeMission?.monthlyCostDelta ?? 0,
+    undefined,
+    runtimeInfraBurn.runtimeMonthlyInfraBurn,
+    {
+      sourceStackId: runtimeInfraBurn.sourceStackId,
+      version: runtimeInfraBurn.version,
+      warnings: runtimeInfraBurn.warnings,
+      explanation: runtimeInfraBurn.explanation,
+      grossInfrastructureCostsMonthly: runtimeInfraBurn.grossInfraBurn,
+      aiApiCostsMonthly: runtimeInfraBurn.aiApiBurn,
+      complianceCostsMonthly: runtimeInfraBurn.complianceBurn,
+      cloudCreditsAppliedMonthly: runtimeInfraBurn.creditsApplied,
+    }
   );
   const trueMonthlyBurn = trueBurnEstimate.totalMonthlyBurn;
 
@@ -250,6 +318,7 @@ export async function getSimulationState(startupId: string) {
     missionCoach,
     trueMonthlyBurn,
     costBreakdown: trueBurnEstimate,
+    openInfrastructureEvent: infrastructureStateForDisplay.infraEventHistory.find((event) => !event.resolved) ?? null,
   };
 }
 
@@ -269,9 +338,13 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
   const startup = await db.startup.findUnique({
     where: { id: startupId },
     include: {
-      simulationMonths: { orderBy: { monthNumber: "desc" }, take: 1 },
+      simulationMonths: { orderBy: { monthNumber: "asc" } },
       employees: true,
       socialState: true,
+      growthOffers: {
+        where: { offerType: "cloud_credits", status: "accepted" },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -362,7 +435,7 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
   const activeMission = missions.find((m) => m.status === "active") ?? missions.find((m) => m.status === "pending");
 
   // Phase 25: state.monthlyBurn should be payroll + office only (maintained by team actions)
-  // simulateMonth will add operating costs, mission costs, and decision/event deltas
+  // simulateMonth will add operating costs, mission costs, infrastructure costs, and decision/event deltas
   const state = {
     cash: startup.cash,
     monthlyBurn: startup.monthlyBurn,
@@ -383,6 +456,51 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
     solution: startup.solution,
   };
 
+  const infraPreviewInput = buildInfrastructurePreviewInputForStartup({
+    startup: {
+      id: startup.id,
+      sector: startup.sector,
+      stage: startup.stage,
+      status: startup.status,
+      monetizationModel: startup.monetizationModel,
+      description: startup.description,
+      problem: startup.problem,
+      solution: startup.solution,
+      productProgress: startup.productProgress,
+      revenue: startup.revenue,
+      riskScore: startup.riskScore,
+      simulationMonths: startup.simulationMonths,
+    },
+    cloudCreditOffers: startup.growthOffers.map((offer) => ({
+      id: offer.id,
+      amount: offer.amount,
+      status: offer.status,
+      sourceOfferId: offer.id,
+    })),
+    currentSprint: nextMonthNumber,
+  });
+  const infrastructureState = syncCloudCreditBalancesFromOffers(
+    parseInfrastructureState(startup.aiAnalysis),
+    infraPreviewInput.cloudCreditOffers ?? [],
+    nextMonthNumber,
+    startup.id
+  );
+  const runtimeInfraBurn = calculateRuntimeInfrastructureBurn(infraPreviewInput, {
+    selectedStackId: infrastructureState.selectedStackId,
+    creditBalances: infrastructureState.creditBalances,
+  });
+  const infraStateAfterCredits = {
+    ...infrastructureState,
+    creditBalances: runtimeInfraBurn.creditBalances ?? infrastructureState.creditBalances,
+  };
+  const infraEventSelection = selectInfrastructureEventForSprint({
+    state: infraStateAfterCredits,
+    previewInput: infraPreviewInput,
+    runtime: runtimeInfraBurn,
+    currentSprint: nextMonthNumber,
+  });
+  const infrastructureStateAfterSprint = infraEventSelection.state;
+
   // Run simulation
   const result = simulateMonth(
     state,
@@ -395,7 +513,14 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
     nextMonthNumber,
     eventEffect,
     startup.stage,
-    activeMission?.monthlyCostDelta ?? 0
+    activeMission?.monthlyCostDelta ?? 0,
+    runtimeInfraBurn.runtimeMonthlyInfraBurn,
+    {
+      grossInfrastructureCosts: runtimeInfraBurn.grossInfraBurn,
+      aiApiCosts: runtimeInfraBurn.aiApiBurn,
+      complianceCosts: runtimeInfraBurn.complianceBurn,
+      cloudCreditsApplied: runtimeInfraBurn.creditsApplied,
+    }
   );
 
   // Phase 24: Calculate mission progress
@@ -746,7 +871,13 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
     }];
   }
 
-  const finalFeedItems = [...updatedFeedWithRivals, ...boardroomFeedItems].slice(-100);
+  const infraFeedItems = infraEventSelection.event
+    ? [buildInfrastructureEventTriggerFeedItem(infraEventSelection.event)]
+    : [];
+  const finalFeedItems = appendInfrastructureFeedItems(
+    [...updatedFeedWithRivals, ...boardroomFeedItems].slice(-100),
+    infraFeedItems
+  );
   // ─────────────────────────────────────────────────────────────────────────
 
   // Check death
@@ -783,6 +914,10 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
     marketScore: result.marketScoreAfter,
     riskScore: result.riskScoreAfter,
     status: deathCheck.dead ? "dead" : nextMonthNumber >= 12 ? "completed" : "funded",
+    aiAnalysis: mergeInfrastructureStateIntoAiAnalysis(startup.aiAnalysis, {
+      ...infrastructureStateAfterSprint,
+      updatedAt: new Date().toISOString(),
+    }) as unknown as Prisma.InputJsonValue,
   };
 
   const transactionOps: import("@prisma/client").Prisma.PrismaPromise<unknown>[] = [
@@ -958,9 +1093,14 @@ export async function runMonthlySimulationAction(startupId: string, decisionIds:
       newPassiveFeedItems[0]
         ? { label: "Arena Feed", text: newPassiveFeedItems[0].title, tone: newPassiveFeedItems[0].severity === "critical" ? "rose" : "cyan" }
         : null,
+      infraEventSelection.event
+        ? { label: "Infrastructure", text: `${infraEventSelection.event.title}: ${infraEventSelection.event.triggerReason}`, tone: infraEventSelection.event.severity === "critical" ? "rose" : "amber" }
+        : null,
     ].filter((item): item is { label: string; text: string; tone: "cyan" | "amber" | "rose" | "emerald" | "violet" } => item !== null),
     nextAction: triggeredBoardroomEventTitle
       ? { label: "Answer Boardroom", href: `/startup/${startupId}/boardroom` }
+      : infraEventSelection.event
+        ? { label: "Resolve Infra Event", href: `/startup/${startupId}/infrastructure` }
       : topRivalMove
         ? { label: "Check Rivals", href: `/startup/${startupId}/rivals` }
         : activeSynergyTitles.length > 0

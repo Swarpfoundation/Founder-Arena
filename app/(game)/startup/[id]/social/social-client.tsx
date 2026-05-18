@@ -120,6 +120,8 @@ function FeedItemRow({ item }: { item: ArenaFeedItem }) {
     press: <Radio className="w-3 h-3" />,
     viral: <Flame className="w-3 h-3" />,
     crisis: <AlertTriangle className="w-3 h-3" />,
+    infrastructure: <AlertTriangle className="w-3 h-3" />,
+    operations: <Radio className="w-3 h-3" />,
     rival: <Zap className="w-3 h-3" />,
     milestone: <CheckCircle2 className="w-3 h-3" />,
   };

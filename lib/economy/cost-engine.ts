@@ -59,7 +59,14 @@ export function calculateTotalBurn(
   stage: string,
   revenue: number,
   missionCostDelta = 0,
-  userCount?: number
+  userCount?: number,
+  infrastructureCostsMonthly = 0,
+  infrastructureBreakdown?: TotalCostEstimate["infrastructureBreakdown"] & {
+    grossInfrastructureCostsMonthly?: number;
+    aiApiCostsMonthly?: number;
+    complianceCostsMonthly?: number;
+    cloudCreditsAppliedMonthly?: number;
+  }
 ): TotalCostEstimate {
   const region = employees[0]?.region ?? "remote";
 
@@ -76,11 +83,12 @@ export function calculateTotalBurn(
     stage,
     employees.length,
     revenue,
-    userCount
+    userCount,
+    { excludeInfrastructureLikeCosts: infrastructureCostsMonthly > 0 }
   );
   const operatingCostsMonthly = operatingBreakdown.reduce((sum, b) => sum + b.amount, 0);
 
-  const totalMonthlyBurn = payrollMonthly + officeMonthly + operatingCostsMonthly + missionCostDelta;
+  const totalMonthlyBurn = payrollMonthly + officeMonthly + operatingCostsMonthly + missionCostDelta + infrastructureCostsMonthly;
 
   // Calculate runway based on cash vs total burn — this is just a structural estimate.
   // Actual runway requires cash input from caller.
@@ -89,10 +97,16 @@ export function calculateTotalBurn(
     officeMonthly,
     operatingCostsMonthly,
     missionCostsMonthly: missionCostDelta,
+    infrastructureCostsMonthly,
+    grossInfrastructureCostsMonthly: infrastructureBreakdown?.grossInfrastructureCostsMonthly ?? infrastructureCostsMonthly,
+    aiApiCostsMonthly: infrastructureBreakdown?.aiApiCostsMonthly ?? 0,
+    complianceCostsMonthly: infrastructureBreakdown?.complianceCostsMonthly ?? 0,
+    cloudCreditsAppliedMonthly: infrastructureBreakdown?.cloudCreditsAppliedMonthly ?? 0,
     totalMonthlyBurn,
     runwayMonths: 0, // caller should override with real cash / burn
     breakdown,
     operatingBreakdown,
+    infrastructureBreakdown,
   };
 }
 

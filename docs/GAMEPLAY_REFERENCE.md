@@ -94,10 +94,10 @@ draft → pitching → funded → active → completed
 - Founder coaching notes
 
 ### Review Limits by Plan
-| Plan | Reviews/Month | Cooldown |
+| Plan | VC Review Submissions | Cooldown |
 |---|---|---|
-| Free | 3 | 2 hours |
-| Pro | 20 | None |
+| Free | 3 / UTC week | 2 hours |
+| Pro | Unlimited | None |
 | Max | Unlimited | None |
 
 ---
@@ -350,8 +350,8 @@ final = base × outcomeMultiplier
 
 | Feature | Free | Pro ($9/mo) | Max ($19/mo) |
 |---|---|---|---|
-| Max startups | 3 | Unlimited | Unlimited |
-| AI reviews / month | 3 | 20 | Unlimited |
+| Max startup drafts | Unlimited | Unlimited | Unlimited |
+| VC review submissions | 3 / UTC week | Unlimited | Unlimited |
 | Review cooldown | 2 hours | None | None |
 | Speed tokens / month | 0 | 5 | 20 |
 | Priority queue | No | Yes | Yes |
@@ -360,6 +360,20 @@ final = base × outcomeMultiplier
 ### Speed Tokens
 - Premium currency for skipping the 2-hour review cooldown
 - Pro: 5/month · Max: 20/month
+
+### Optional Mock Rewarded Acceleration
+- Free users may optionally watch a mock rewarded sponsor video to reduce VC review cooldown time
+- First reward moves the wait toward 15 minutes; second reward moves it toward 5 minutes
+- Maximum 2 rewarded accelerators per review cooldown and 6 per day
+- Mock rewards never improve startup metrics, VC decisions, leaderboard score, or final outcome
+- No real ad SDK, provider API, tracking, sponsor inventory, ATT prompt, or CMP is active in v0.1
+
+### Referral Rewards
+- Each founder has a stable referral code and `/r/[code]` link.
+- Referral rewards are non-cash: 100 Founder Points + 1 VC review submission credit for both referrer and referred founder.
+- Founder Points have no cash value and do not affect leaderboard score, VC decisions, startup stats, death checks, or funding quality.
+- Submission credits only let Free users exceed the weekly VC review submission cap.
+- Self-referrals and repeat attribution are blocked server-side.
 
 ---
 
@@ -386,10 +400,22 @@ final = base × outcomeMultiplier
 | Achievements | 50+ |
 | Market scenarios | 7+ |
 | Candidate pool per sprint | 5 |
-| Max startups (Free) | 3 |
+| Max startup drafts (Free) | Unlimited |
 | Max startups (Pro/Max) | Unlimited |
 
 ### Founder Week Phases
+
+### Infrastructure Burn
+
+Founder Arena now includes a conservative infrastructure burn component in Monthly Burn. The model uses static provider archetypes, not exact cloud invoices or live pricing APIs. Infrastructure burn may include hosting, database, bandwidth/egress, AI/API usage, compliance overhead, and accepted cloud credits.
+
+Players can select a validated infrastructure stack in the Infra Stack Console. If no stack is selected, the deterministic recommended stack is used. Accepted cloud credits create finite balances that reduce infrastructure burn only, deplete as they are applied, and expire by Founder Week.
+
+Infrastructure events can now open from real infra state: prototype stack pressure, serverless bill spikes, database limits, egress surprises, observability spikes, cloud credit cliffs, LLM token bill shock, compliance audits, and enterprise reliability reviews. Events are response-driven and recoverable; they do not change death/scoring/funding thresholds.
+
+Infra event triggers and resolutions now appear in Arena Feed with safe generic operations copy. Major infra events can also appear in Founder Documentary timelines after Demo Day. Resolved infra responses may emit small strategy signals, but no boardroom/social penalty chains or threshold changes are active.
+
+Monthly financial accounting is preserved: infrastructure affects Monthly Burn and runway while the player-facing run still uses 12 Founder Weeks / Sprints.
 | Weeks | Phase | Player-Facing Tone |
 |---|---|---|
 | 1-3 | Launch Signal | Find your first signal before the arena notices. |

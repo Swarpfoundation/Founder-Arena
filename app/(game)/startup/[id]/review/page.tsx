@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import { getStartupById, getLatestVcReview } from "@/lib/actions/startup";
 import { getTermSheet } from "@/lib/actions/terms";
 import { getNextBestActionForStartup } from "@/lib/onboarding/progress";
+import { getAIReviewStatusPresentation, getLatestAIReviewJobForStartup } from "@/lib/ai-review";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/game/ProgressBar";
 import { GameCard } from "@/components/game/GameCard";
 import { StartupRunHud } from "@/components/game/StartupRunHud";
+import { BetaFeedbackForm } from "@/components/game/BetaFeedbackForm";
 import { NextBestActionInline } from "@/components/onboarding/NextBestAction";
 import { cn } from "@/lib/utils";
 import {
@@ -53,6 +55,19 @@ function termsStanceBadge(stance: string) {
   }
 }
 
+function ReviewList({ items }: { items?: string[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <ul className="space-y-1">
+      {items.map((item, index) => (
+        <li key={`${item}-${index}`} className="text-xs text-white/55">
+          - {item}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function VcReviewPage({ params }: { params: Promise<{ id: string }> }) {
@@ -68,6 +83,9 @@ export default async function VcReviewPage({ params }: { params: Promise<{ id: s
   const review = await getLatestVcReview(id);
 
   if (!review) {
+    const pendingJob = await getLatestAIReviewJobForStartup(id);
+    const pendingPresentation = pendingJob ? getAIReviewStatusPresentation(pendingJob.status) : null;
+
     return (
       <div className="max-w-7xl mx-auto pt-24 pb-12 px-4 md:px-8 max-w-3xl">
         <div className="mb-6">
@@ -77,15 +95,45 @@ export default async function VcReviewPage({ params }: { params: Promise<{ id: s
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>No Review Yet</CardTitle>
+            <CardTitle>{pendingJob ? "Private Beta AI Review" : "No Review Yet"}</CardTitle>
             <CardDescription>
-              You haven&apos;t submitted your pitch for review yet.
+              {pendingJob && pendingPresentation
+                ? pendingPresentation.description
+                : "You haven't submitted your pitch for review yet."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Link href={`/startup/${id}/pitch`}>
-              <Button>Build Pitch & Submit</Button>
-            </Link>
+            {pendingJob && pendingPresentation ? (
+              <div className="space-y-4">
+                <div className="border border-cyan-500/20 bg-cyan-500/10 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-300/70">
+                    {pendingPresentation.label}
+                  </p>
+                  <p className="mt-2 text-sm text-white/60">
+                    Provider: <span className="text-white">{pendingJob.provider}</span> · Mode:{" "}
+                    <span className="text-white">{pendingJob.mode.replace(/_/g, " ")}</span> · Attempts:{" "}
+                    <span className="text-white">{pendingJob.attempts}/{pendingJob.maxAttempts}</span>
+                  </p>
+                  {pendingJob.lastError && (
+                    <p className="mt-2 text-xs text-amber-300">
+                      The private beta queue hit a provider issue. It will retry if attempts remain.
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Link href={`/startup/${id}/review`}>
+                    <Button variant="secondary">{pendingPresentation.cta}</Button>
+                  </Link>
+                  <Link href={`/startup/${id}`}>
+                    <Button variant="outline">Continue Playing</Button>
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <Link href={`/startup/${id}/pitch`}>
+                <Button>Build Pitch & Submit</Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -115,6 +163,33 @@ export default async function VcReviewPage({ params }: { params: Promise<{ id: s
 
   // Phase 14: Parse committee from rawResponse
   const raw = review.rawResponse as Record<string, unknown> | null;
+  const privateBetaAIReview = raw?.privateBetaAIReview as
+    | { provider?: string; mode?: string; usedFallback?: boolean; model?: string }
+    | undefined;
+  const reviewQuality = raw?.reviewQuality as
+    | {
+        modelRecommendation?: "accept" | "conditional" | "reject";
+        finalDecision?: "accept" | "conditional" | "reject";
+        decisionConfidence?: number;
+        decisionSummary?: string;
+        ruleReasons?: string[];
+        dimensions?: Record<
+          string,
+          { score: number; evidence: string[]; concerns: string[]; confidence: string }
+        >;
+        rejectionReasons?: string[];
+        conditionalRequirements?: string[];
+        minimumEvidenceNeeded?: string[];
+        whatWouldChangeDecision?: string[];
+        acceptanceRationale?: string[];
+        majorRisksStillPresent?: string[];
+        milestoneConditions?: string[];
+        redFlags?: string[];
+        missingInformation?: string[];
+        noTermSheetReason?: string;
+        qualityFlags?: string[];
+      }
+    | undefined;
   const committee = raw?.committee as
     | {
         supportLevel: number;
@@ -156,6 +231,19 @@ export default async function VcReviewPage({ params }: { params: Promise<{ id: s
       </div>
 
       <StartupRunHud startupId={id} status={startup.status} finalOutcome={startup.finalOutcome} className="mb-6" />
+
+      {privateBetaAIReview && (
+        <div className="mb-6 border border-cyan-500/20 bg-cyan-500/10 p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-300/70">
+            Private Beta AI Review
+          </p>
+          <p className="mt-1 text-sm text-white/60">
+            Generated through the server-side review pipeline with{" "}
+            <span className="text-white">{privateBetaAIReview.provider ?? "mock"}</span>
+            {privateBetaAIReview.usedFallback ? " fallback" : ""}. No API keys or provider internals are exposed.
+          </p>
+        </div>
+      )}
 
       {nextAction && (
         <div className="mb-6">
@@ -208,6 +296,126 @@ export default async function VcReviewPage({ params }: { params: Promise<{ id: s
             </div>
           </CardContent>
         </Card>
+
+        {reviewQuality && (
+          <GameCard glow={reviewQuality.finalDecision === "accept" ? "emerald" : reviewQuality.finalDecision === "reject" ? "rose" : "amber"} className="hud-corner border-cyan-500/20">
+            <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-300/70">
+                  Rubric Verdict
+                </p>
+                <h2 className="mt-1 text-xl font-black text-white capitalize">
+                  Final Decision: {reviewQuality.finalDecision ?? review.decision}
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm text-white/60">
+                  {reviewQuality.decisionSummary}
+                </p>
+              </div>
+              <div className="border border-white/10 bg-white/[0.03] px-4 py-3 text-right">
+                <p className="text-[10px] uppercase tracking-widest text-white/35">Confidence</p>
+                <p className="text-2xl font-black text-white">{reviewQuality.decisionConfidence ?? "N/A"}</p>
+              </div>
+            </div>
+
+            {reviewQuality.modelRecommendation &&
+              reviewQuality.finalDecision &&
+              reviewQuality.modelRecommendation !== reviewQuality.finalDecision && (
+                <div className="mb-5 border border-amber-500/20 bg-amber-500/10 p-3">
+                  <p className="text-xs font-bold uppercase tracking-widest text-amber-300">
+                    Rule Guardrail Applied
+                  </p>
+                  <p className="mt-1 text-sm text-white/65">
+                    Model recommendation was {reviewQuality.modelRecommendation}; final decision was adjusted to{" "}
+                    {reviewQuality.finalDecision}.
+                  </p>
+                  <ReviewList items={reviewQuality.ruleReasons} />
+                </div>
+              )}
+
+            <div className="grid gap-3 md:grid-cols-5">
+              {Object.entries(reviewQuality.dimensions ?? {}).map(([key, dimension]) => (
+                <div key={key} className="border border-white/10 bg-black/20 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-wider text-white/70">{key}</p>
+                    <p className="text-lg font-black text-white">{dimension.score}</p>
+                  </div>
+                  <p className="mb-1 text-[10px] uppercase tracking-widest text-emerald-300/70">Evidence</p>
+                  <ReviewList items={dimension.evidence?.slice(0, 2)} />
+                  <p className="mb-1 mt-3 text-[10px] uppercase tracking-widest text-rose-300/70">Concerns</p>
+                  <ReviewList items={dimension.concerns?.slice(0, 2)} />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              {reviewQuality.finalDecision === "accept" && (
+                <div className="border border-emerald-500/15 bg-emerald-500/5 p-4">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-widest text-emerald-300">
+                    Why Accepted
+                  </p>
+                  <ReviewList items={reviewQuality.acceptanceRationale} />
+                </div>
+              )}
+              {reviewQuality.finalDecision === "conditional" && (
+                <div className="border border-amber-500/15 bg-amber-500/5 p-4">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-widest text-amber-300">
+                    Conditions To Become Fundable
+                  </p>
+                  <ReviewList items={reviewQuality.conditionalRequirements} />
+                </div>
+              )}
+              {reviewQuality.finalDecision === "reject" && (
+                <div className="border border-rose-500/15 bg-rose-500/5 p-4">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-widest text-rose-300">
+                    Why Rejected
+                  </p>
+                  <ReviewList items={reviewQuality.rejectionReasons} />
+                  <p className="mt-3 text-xs text-white/45">
+                    No Term Sheet Generated: {reviewQuality.noTermSheetReason ?? "The pitch does not clear the funding bar yet."}
+                  </p>
+                </div>
+              )}
+              <div className="border border-cyan-500/15 bg-cyan-500/5 p-4">
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-cyan-300">
+                  What Would Change The Decision
+                </p>
+                <ReviewList items={reviewQuality.whatWouldChangeDecision} />
+              </div>
+              <div className="border border-white/10 bg-white/[0.03] p-4">
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-white/50">
+                  Missing Information
+                </p>
+                <ReviewList items={reviewQuality.missingInformation} />
+                <ReviewList items={reviewQuality.minimumEvidenceNeeded} />
+              </div>
+              <div className="border border-violet-500/15 bg-violet-500/5 p-4">
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-violet-300">
+                  Risks & Milestones
+                </p>
+                <ReviewList items={reviewQuality.majorRisksStillPresent} />
+                <ReviewList items={reviewQuality.milestoneConditions} />
+              </div>
+            </div>
+
+            {(reviewQuality.redFlags?.length || reviewQuality.qualityFlags?.length) && (
+              <div className="mt-5 border border-rose-500/15 bg-rose-500/5 p-4">
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-rose-300">
+                  Review Quality Flags
+                </p>
+                <ReviewList items={[...(reviewQuality.redFlags ?? []), ...(reviewQuality.qualityFlags ?? [])]} />
+              </div>
+            )}
+          </GameCard>
+        )}
+
+        <BetaFeedbackForm
+          startupId={id}
+          reviewId={review.id}
+          decision={reviewQuality?.finalDecision ?? review.decision}
+          score={review.overallScore}
+          provider={privateBetaAIReview?.provider ?? "legacy"}
+          route={`/startup/${id}/review`}
+        />
 
         {/* Phase 14: Investment Committee */}
         {hasCommittee && (

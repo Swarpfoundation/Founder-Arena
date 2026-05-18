@@ -50,6 +50,11 @@ export interface MonthlyResult {
     baseBurn: number;
     operatingCosts: number;
     missionCosts: number;
+    infrastructureCosts?: number;
+    grossInfrastructureCosts?: number;
+    aiApiCosts?: number;
+    complianceCosts?: number;
+    cloudCreditsApplied?: number;
     decisionBurn: number;
     marketMultiplier: number;
     total: number;
@@ -142,7 +147,14 @@ export function simulateMonth(
   currentMonth: number = 1,
   eventEffect?: EventEffect,
   stage: string = "seed",
-  missionCostDelta: number = 0
+  missionCostDelta: number = 0,
+  infrastructureCostDelta: number = 0,
+  infrastructureCostBreakdown?: {
+    grossInfrastructureCosts: number;
+    aiApiCosts: number;
+    complianceCosts: number;
+    cloudCreditsApplied: number;
+  }
 ): MonthlyResult {
   const cashStart = state.cash;
   const productProgressBefore = state.productProgress;
@@ -245,8 +257,15 @@ export function simulateMonth(
   }
 
   // Phase 25: Calculate operating costs and add mission costs
-  const operatingCosts = getTotalOperatingCosts(sector, stage, employees.length, state.revenue);
-  const baseBurn = state.monthlyBurn + operatingCosts + missionCostDelta;
+  const operatingCosts = getTotalOperatingCosts(
+    sector,
+    stage,
+    employees.length,
+    state.revenue,
+    undefined,
+    { excludeInfrastructureLikeCosts: infrastructureCostDelta > 0 }
+  );
+  const baseBurn = state.monthlyBurn + operatingCosts + missionCostDelta + infrastructureCostDelta;
 
   // Calculate new values
   const newRevenue = Math.round((state.revenue + eventDeltas.revenueDelta) * eventDeltas.revenueMultiplier);
@@ -291,6 +310,11 @@ export function simulateMonth(
       baseBurn: state.monthlyBurn,
       operatingCosts,
       missionCosts: missionCostDelta,
+      infrastructureCosts: infrastructureCostDelta,
+      grossInfrastructureCosts: infrastructureCostBreakdown?.grossInfrastructureCosts ?? infrastructureCostDelta,
+      aiApiCosts: infrastructureCostBreakdown?.aiApiCosts ?? 0,
+      complianceCosts: infrastructureCostBreakdown?.complianceCosts ?? 0,
+      cloudCreditsApplied: infrastructureCostBreakdown?.cloudCreditsApplied ?? 0,
       decisionBurn: eventDeltas.burnDelta,
       marketMultiplier: eventDeltas.burnMultiplier,
       total: newBurn,

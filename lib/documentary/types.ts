@@ -33,6 +33,7 @@ export type TimelineImpact = "positive" | "negative" | "mixed" | "neutral";
 export type TimelineSource =
   | "simulation"
   | "social"
+  | "infrastructure"
   | "rival"
   | "funding"
   | "career"

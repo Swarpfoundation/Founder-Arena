@@ -57,8 +57,19 @@ export interface TotalCostEstimate {
   officeMonthly: number;
   operatingCostsMonthly: number;
   missionCostsMonthly: number;
+  infrastructureCostsMonthly: number;
+  grossInfrastructureCostsMonthly: number;
+  aiApiCostsMonthly: number;
+  complianceCostsMonthly: number;
+  cloudCreditsAppliedMonthly: number;
   totalMonthlyBurn: number;
   runwayMonths: number;
   breakdown: CostBreakdown[];
   operatingBreakdown: { category: string; amount: number }[];
+  infrastructureBreakdown?: {
+    sourceStackId: string;
+    version: string;
+    warnings: string[];
+    explanation: string[];
+  };
 }

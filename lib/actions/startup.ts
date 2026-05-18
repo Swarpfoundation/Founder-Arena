@@ -15,8 +15,17 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { checkStartupCreateEntitlement } from "@/lib/billing/entitlements";
 import { getReviewAccess, spendTokenAndBypass } from "@/lib/billing/review-access";
 import { recordUsage } from "@/lib/billing/usage";
+import {
+  AI_REVIEW_ACTION_TYPE,
+  enqueueAIReviewJob,
+  generateAndPersistAIReviewForStartup,
+  getAIReviewRuntimeConfig,
+  getActiveAIReviewJobForStartup,
+  isPrivateBetaAIReviewEnabled,
+} from "@/lib/ai-review";
 import { classifyStartup } from "@/lib/missions/startup-classifier";
 import { generateMissionRoadmap, persistRoadmapToDb } from "@/lib/missions/mission-generator";
+import { consumeWeeklySubmissionAllowance } from "@/lib/growth/submission-limits";
 import { z } from "zod";
 
 export async function createStartupAction(data: z.infer<typeof createStartupSchema>) {
@@ -233,6 +242,67 @@ export async function submitPitchForReviewAction(
     throw new Error("Pitch deck not found");
   }
 
+  const aiReviewConfig = getAIReviewRuntimeConfig();
+  if (isPrivateBetaAIReviewEnabled()) {
+    const activeJob = await getActiveAIReviewJobForStartup(user.id, startupId);
+    if (activeJob) {
+      throw new Error("A private beta AI review is already queued or running for this startup.");
+    }
+
+    const dayStart = new Date();
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const [completedToday, queuedToday] = await Promise.all([
+      db.vcReview.count({
+        where: {
+          startup: { userId: user.id },
+          createdAt: { gte: dayStart },
+        },
+      }),
+      db.queuedAction.count({
+        where: {
+          userId: user.id,
+          actionType: AI_REVIEW_ACTION_TYPE,
+          queuedAt: { gte: dayStart },
+          status: { in: ["queued", "running", "retrying", "completed"] },
+        },
+      }),
+    ]);
+    if (completedToday + queuedToday >= aiReviewConfig.maxDailyPerUser) {
+      throw new Error("Private beta AI review daily limit reached. Try again tomorrow.");
+    }
+
+    if (aiReviewConfig.mode === "queued_worker") {
+      await enqueueAIReviewJob({
+        userId: user.id,
+        startupId,
+        pitchDeckUpdatedAt: startup.pitchDeck.updatedAt,
+        config: aiReviewConfig,
+      });
+      await consumeWeeklySubmissionAllowance({
+        userId: user.id,
+        startupId,
+        pitchDeckUpdatedAt: startup.pitchDeck.updatedAt,
+      });
+      await recordUsage(user.id, "vcReview", 1);
+      revalidatePath(`/startup/${startupId}/review`);
+      redirect(`/startup/${startupId}/review`);
+    }
+
+    await generateAndPersistAIReviewForStartup({
+      userId: user.id,
+      startupId,
+      config: aiReviewConfig,
+    });
+    await consumeWeeklySubmissionAllowance({
+      userId: user.id,
+      startupId,
+      pitchDeckUpdatedAt: startup.pitchDeck.updatedAt,
+    });
+    await recordUsage(user.id, "vcReview", 1);
+    revalidatePath(`/startup/${startupId}/review`);
+    redirect(`/startup/${startupId}/review`);
+  }
+
   const review = await ai.reviewPitch({
     startupName: startup.name,
     sector: startup.sector,
@@ -342,6 +412,11 @@ export async function submitPitchForReviewAction(
   const profile = await getOrCreateFounderProfile(user.id);
   await evaluateAchievementsForPitch(profile.id);
 
+  await consumeWeeklySubmissionAllowance({
+    userId: user.id,
+    startupId,
+    pitchDeckUpdatedAt: startup.pitchDeck.updatedAt,
+  });
   await recordUsage(user.id, "vcReview", 1);
 
   revalidatePath(`/startup/${startupId}/review`);

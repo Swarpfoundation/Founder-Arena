@@ -12,7 +12,8 @@ export type UsageActionType =
   | "monthlySimulation"
   | "aiAnalysis"
   | "growthAccess"
-  | "speedTokenSpend";
+  | "speedTokenSpend"
+  | "vcReviewWeeklySubmission";
 
 export function getPeriodBounds(date = new Date()) {
   const start = new Date(date.getFullYear(), date.getMonth(), 1);
