@@ -1,4 +1,14 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
+import {
+  AlertTriangle,
+  BookOpen,
+  ChevronRight,
+  Crosshair,
+  Rocket,
+  Trophy,
+  Users,
+} from "lucide-react";
 
 import { getUserStartups } from "@/lib/actions/startup";
 import { captureReferralFromCookie } from "@/lib/actions/referrals";
@@ -7,361 +17,232 @@ import { getOnboardingProgress } from "@/lib/onboarding/progress";
 import { db } from "@/lib/db";
 import { requireCurrentUser } from "@/lib/auth-helpers";
 import {
-  getDemoDayCountdown,
-  getRunPhaseLabel,
-  getShortRunStepLabel,
-  getSprintPressureLevel,
-} from "@/lib/game-time/time-scale";
-import { StatusBadge } from "@/components/game/StatusBadge";
-import {
-  Plus,
-  Crosshair,
-  ChevronRight,
-  AlertTriangle,
-  Trophy,
-  Rocket,
-} from "lucide-react";
-
-function CountUpDisplay({ value, prefix = "", suffix = "" }: { value: number; prefix?: string; suffix?: string }) {
-  return (
-    <span>
-      {prefix}{value.toLocaleString()}{suffix}
-    </span>
-  );
-}
-
-function StatBlock({ label, value, prefix = "", suffix = "", color = "cyan" }: {
-  label: string; value: number; prefix?: string; suffix?: string; color?: string;
-}) {
-  const colors: Record<string, string> = {
-    cyan: "text-cyan-400 border-cyan-400/30",
-    violet: "text-violet-400 border-violet-400/30",
-    emerald: "text-emerald-400 border-emerald-400/30",
-    gold: "text-[#ffcc00] border-[#ffcc00]/30",
-    rose: "text-rose-400 border-rose-400/30",
-  };
-  const c = colors[color] ?? colors.cyan;
-  const textColor = c.split(" ")[0];
-
-  return (
-    <div
-      className={`relative p-4 border ${c} bg-black/40 backdrop-blur-sm`}
-     
-     
-     
-    >
-      <div className="absolute top-0 left-0 w-3 h-3 border-l border-t border-current opacity-50" />
-      <div className="absolute bottom-0 right-0 w-3 h-3 border-r border-b border-current opacity-50" />
-      <p className="text-[10px] tracking-[0.2em] text-white/40 mb-1 uppercase">{label}</p>
-      <p className={`text-2xl font-black tracking-tight ${textColor}`} style={{ textShadow: `0 0 20px currentColor` }}>
-        <CountUpDisplay value={value} prefix={prefix} suffix={suffix} />
-      </p>
-    </div>
-  );
-}
-
-function TacticalCard({ startup }: { startup: Awaited<ReturnType<typeof getUserStartups>>[0] }) {
-  const colorMap: Record<string, { border: string; glow: string; text: string; bg: string }> = {
-    cyan: { border: "border-cyan-400/30", glow: "glow-cyan", text: "text-cyan-400", bg: "bg-cyan-400/10" },
-    violet: { border: "border-violet-400/30", glow: "glow-violet", text: "text-violet-400", bg: "bg-violet-400/10" },
-    emerald: { border: "border-emerald-400/30", glow: "glow-emerald", text: "text-emerald-400", bg: "bg-emerald-400/10" },
-    rose: { border: "border-rose-400/30", glow: "glow-rose", text: "text-rose-400", bg: "bg-rose-400/10" },
-  };
-
-  const statusColor =
-    startup.status === "dead" ? "rose" :
-    startup.status === "completed" ? "emerald" :
-    startup.status === "funded" || startup.status === "active" ? "cyan" :
-    "violet";
-
-  const c = colorMap[statusColor];
-  const simMonths = startup.simulationMonths.length;
-  const isOperating = startup.status === "funded" || startup.status === "active";
-  const isComplete = startup.status === "completed" || startup.status === "dead";
-  const runStep = isComplete ? Math.max(1, Math.min(12, simMonths || 12)) : Math.max(1, Math.min(12, simMonths + 1));
-  const pressure = getSprintPressureLevel(runStep);
-  const pressureText =
-    isComplete ? "Finalized" :
-    pressure === "demo_day" ? "Demo Day Runway" :
-    pressure === "dangerous" ? "Pressure Rising" :
-    pressure === "rising" ? "Market Proof" :
-    "Early Signal";
-  const runway = startup.monthlyBurn > 0 ? Math.round(startup.cash / startup.monthlyBurn) : 99;
-
-  return (
-    <div
-     
-     
-     
-    >
-      <Link
-        href={isComplete && startup.publicSlug ? `/s/${startup.publicSlug}` : `/startup/${startup.id}`}
-        className="block"
-      >
-        <div
-          className={`relative p-5 border ${c.border} bg-black/60 backdrop-blur-sm cursor-pointer group overflow-hidden`}
-         
-         
-        >
-          <div className="absolute top-0 left-0 w-4 h-4 border-l-2 border-t-2 border-current opacity-40" />
-          <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 border-current opacity-40" />
-          <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-            <div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent"
-             
-             
-            />
-          </div>
-          <div className="relative z-10 space-y-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className={`text-lg font-black tracking-wider ${c.text}`} style={{ textShadow: `0 0 15px currentColor` }}>
-                  {startup.name}
-                </h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-[10px] px-2 py-0.5 border ${c.border} ${c.text} tracking-wider uppercase`}>
-                    {startup.stage}
-                  </span>
-                  <StatusBadge status={startup.status} />
-                </div>
-              </div>
-              <ChevronRight className={`w-5 h-5 ${c.text} opacity-0 group-hover:opacity-100 transition-opacity`} />
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className={`p-2 ${c.bg} border ${c.border}`}>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider">VALUATION</p>
-                <p className={`font-bold ${c.text}`}>${(startup.valuation / 1000000).toFixed(1)}M</p>
-              </div>
-              <div className={`p-2 ${c.bg} border ${c.border}`}>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider">RUNWAY</p>
-                <p className={`font-bold ${runway < 6 ? "text-rose-400" : c.text}`}>{runway} MO</p>
-              </div>
-              <div className={`p-2 ${c.bg} border ${c.border}`}>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider">REVENUE</p>
-                <p className="text-white font-bold">${(startup.revenue / 1000).toFixed(0)}K/MO</p>
-              </div>
-              <div className={`p-2 ${c.bg} border ${c.border}`}>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider">PROGRESS</p>
-                <p className={`font-bold ${startup.productProgress < 30 ? "text-amber-400" : "text-emerald-400"}`}>{startup.productProgress}%</p>
-              </div>
-            </div>
-            {isOperating && (
-              <div className="space-y-1 text-[10px] text-white/40">
-                <div>
-                  {getShortRunStepLabel(runStep)} of 12 • {getRunPhaseLabel(runStep)} • {startup.employees.filter(e => e.status === "active").length} team members
-                </div>
-                <div className="flex items-center justify-between gap-2 border border-white/5 bg-white/[0.03] px-2 py-1">
-                  <span className="font-bold uppercase tracking-wider text-white/35">{pressureText}</span>
-                  <span className={pressure === "demo_day" ? "text-rose-400" : "text-cyan-400"}>{getDemoDayCountdown(runStep)}</span>
-                </div>
-              </div>
-            )}
-            {isComplete && (
-              <div className="text-[10px] text-white/40">
-                Simulation complete • Score: {startup.finalScore ?? "—"}
-              </div>
-            )}
-          </div>
-        </div>
-      </Link>
-    </div>
-  );
-}
+  getDashboardObjective,
+  getNextObjective,
+  getStartupRunStep,
+  pickPrimaryStartup,
+} from "@/lib/game/objectives";
+import { getDemoDayCountdown, getRunPhaseLabel, getShortRunStepLabel } from "@/lib/game-time/time-scale";
+import { GameCard } from "@/components/game/GameCard";
+import { GameHudBar } from "@/components/game/GameHudBar";
+import { GameScene } from "@/components/game/GameScene";
+import { ObjectiveTracker } from "@/components/game/ObjectiveTracker";
+import { RunSlotCard } from "@/components/game/RunSlotCard";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const user = await requireCurrentUser();
   await captureReferralFromCookie();
+
   const [profile, startups, onboardingProgress] = await Promise.all([
     getOrCreateFounderProfile(user.id),
     getUserStartups(),
     getOnboardingProgress(user.id),
   ]);
 
-  const [bestEntry] = await Promise.all([
-    db.leaderboardEntry.findFirst({
-      where: { userId: user.id },
-      orderBy: { score: "desc" },
-      include: { startup: true },
-    }),
-  ]);
+  const bestEntry = await db.leaderboardEntry.findFirst({
+    where: { userId: user.id },
+    orderBy: { score: "desc" },
+    include: { startup: true },
+  });
 
+  const primaryStartup = pickPrimaryStartup(startups);
+  const dashboardObjective = getDashboardObjective(startups);
+  const activeRuns = startups.filter((startup) => startup.status === "active" || startup.status === "funded");
+  const setupRuns = startups.filter((startup) => startup.status === "draft" || startup.status === "pitching");
+  const archivedRuns = startups.filter((startup) => startup.status === "completed" || startup.status === "dead");
+  const totalValue = startups.reduce((sum, startup) => sum + startup.valuation, 0);
+  const totalRevenue = startups.reduce((sum, startup) => sum + startup.revenue, 0);
+  const criticalRunway = activeRuns.filter((startup) => {
+    const runway = startup.monthlyBurn > 0 ? startup.cash / startup.monthlyBurn : 99;
+    return runway < 6;
+  });
+  const runStep = primaryStartup ? getStartupRunStep(primaryStartup) : undefined;
+  const objective = primaryStartup ? getNextObjective(primaryStartup) : dashboardObjective;
+  const activeIncidentCount = criticalRunway.length + (onboardingProgress.nextAction ? 1 : 0);
   const xpForNext = profile.level < 10 ? profile.level * 100 + (profile.level - 1) * 50 : 99999;
   const xpProgress = Math.min(100, Math.round((profile.xp / xpForNext) * 100));
 
-  const activeUnits = startups.filter(s => s.status === "active" || s.status === "funded").length;
-  const totalValue = startups.reduce((sum, s) => sum + s.valuation, 0);
-  const totalRevenue = startups.reduce((sum, s) => sum + s.revenue, 0);
+  const sidePanel = (
+    <>
+      <ObjectiveTracker objective={dashboardObjective} />
 
-  // Derive action cards from real state
-  const urgentStartups = startups.filter(s => {
-    if (s.status !== "active" && s.status !== "funded") return false;
-    const runway = s.monthlyBurn > 0 ? s.cash / s.monthlyBurn : 99;
-    return runway < 6;
-  });
+      <GameCard glow="violet" className="hud-corner">
+        <p className="text-[10px] font-black uppercase tracking-[0.32em] text-violet-300/60">Founder Signal</p>
+        <div className="mt-4 flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center border border-violet-500/30 bg-violet-500/10 text-2xl font-black text-white">
+            {profile.level}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex justify-between gap-3 text-xs">
+              <span className="font-black uppercase tracking-wider text-violet-300/70">Operative XP</span>
+              <span className="text-violet-200/70">{profile.xp.toLocaleString()} / {xpForNext.toLocaleString()}</span>
+            </div>
+            <div className="h-2 bg-white/10">
+              <div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-400" style={{ width: `${xpProgress}%` }} />
+            </div>
+          </div>
+        </div>
+      </GameCard>
 
-  const actionCards = [];
-  if (urgentStartups.length > 0) {
-    actionCards.push({
-      icon: AlertTriangle,
-      label: "URGENT",
-      desc: `${urgentStartups[0].name}: Runway critical`,
-      color: "rose" as const,
-      pulse: true,
-      href: `/startup/${urgentStartups[0].id}/operate`,
-    });
-  }
-  if (onboardingProgress.nextAction) {
-    actionCards.push({
-      icon: Crosshair,
-      label: "MISSION",
-      desc: onboardingProgress.nextAction.label,
-      color: "cyan" as const,
-      pulse: false,
-      href: onboardingProgress.nextAction.href,
-    });
-  }
-  if (bestEntry) {
-    actionCards.push({
-      icon: Trophy,
-      label: "BEST RUN",
-      desc: `${bestEntry.startup.name}: ${bestEntry.score.toLocaleString()} pts`,
-      color: "amber" as const,
-      pulse: false,
-      href: bestEntry.startup.publicSlug ? `/s/${bestEntry.startup.publicSlug}` : `/startup/${bestEntry.startupId}`,
-    });
-  }
+      <GameCard glow={criticalRunway.length > 0 ? "rose" : "cyan"} className="hud-corner">
+        <p className="text-[10px] font-black uppercase tracking-[0.32em] text-cyan-300/60">Active Incidents</p>
+        <div className="mt-3 space-y-2">
+          {criticalRunway.length > 0 ? (
+            criticalRunway.slice(0, 3).map((startup) => (
+              <Link
+                key={startup.id}
+                href={`/startup/${startup.id}/operate`}
+                className="flex items-center gap-2 border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200/80"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {startup.name}: runway critical
+              </Link>
+            ))
+          ) : (
+            <p className="text-sm text-white/45">No critical operation warnings detected.</p>
+          )}
+          {onboardingProgress.nextAction && (
+            <Link
+              href={onboardingProgress.nextAction.href}
+              className="flex items-center gap-2 border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200/80"
+            >
+              <Crosshair className="h-3.5 w-3.5" />
+              {onboardingProgress.nextAction.label}
+            </Link>
+          )}
+        </div>
+      </GameCard>
+
+      <GameCard className="hud-corner">
+        <p className="text-[10px] font-black uppercase tracking-[0.32em] text-white/35">Quick Gates</p>
+        <div className="mt-3 grid gap-2">
+          <QuickLink href="/startup/new" icon={<Rocket className="h-4 w-4" />} label="Deploy New Founder" />
+          <QuickLink href="/career" icon={<BookOpen className="h-4 w-4" />} label="Founder Career" />
+          <QuickLink href="/leaderboard" icon={<Trophy className="h-4 w-4" />} label="Arena Rankings" />
+          <QuickLink href="/referrals" icon={<Users className="h-4 w-4" />} label="Referral Command" />
+        </div>
+      </GameCard>
+    </>
+  );
 
   return (
-    <div className="max-w-7xl mx-auto pt-24 pb-12 px-4 md:px-8 space-y-8">
-      {/* Header */}
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="text-[10px] tracking-[0.4em] text-cyan-400/40 mb-2 uppercase">COMMAND CENTER</p>
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight" style={{ textShadow: "0 0 40px rgba(0,240,255,0.2)" }}>
-            OPERATIVE
-          </h1>
-        </div>
-        <Link href="/startup/new">
-          <div
-            className="relative p-4 border border-cyan-400/30 bg-cyan-400/10 hover:bg-cyan-400/20 transition-all cursor-pointer"
-           
-           
-          >
-            <div className="absolute top-0 left-0 w-2 h-2 border-l border-t border-cyan-400" />
-            <div className="absolute bottom-0 right-0 w-2 h-2 border-r border-b border-cyan-400" />
-            <Plus className="w-5 h-5 text-cyan-400" />
-          </div>
+    <GameScene
+      eyebrow="Private Beta Command Deck"
+      title="Run Select"
+      subtitle="Choose an active operation, resume the next Founder Week, or deploy a fresh startup into the arena."
+      accent="cyan"
+      actions={
+        <Link href="/startup/new" className="inline-flex items-center gap-2 border border-cyan-500/35 bg-cyan-500/10 px-4 py-3 text-xs font-black uppercase tracking-[0.22em] text-cyan-300 transition-colors hover:bg-cyan-500/20">
+          <Rocket className="h-4 w-4" />
+          Deploy New Run
         </Link>
-      </div>
+      }
+      sidePanel={sidePanel}
+    >
+      <GameHudBar
+        startupId={primaryStartup?.id}
+        startupName={primaryStartup?.name}
+        currentStep={runStep}
+        cash={primaryStartup?.cash}
+        monthlyBurn={primaryStartup?.monthlyBurn}
+        activeIncidents={activeIncidentCount}
+        objective={objective}
+      />
 
-      {/* Stat Blocks */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatBlock label="ACTIVE UNITS" value={activeUnits} color="cyan" />
-        <StatBlock label="TOTAL VALUE" value={Math.round(totalValue / 1000000 * 10) / 10} prefix="$" suffix="M" color="violet" />
-        <StatBlock label="REVENUE" value={Math.round(totalRevenue / 1000)} prefix="$" suffix="K" color="emerald" />
-        <StatBlock label="OPERATIVE LVL" value={profile.level} color="gold" />
-      </div>
-
-      {/* XP Progress */}
-      <div
-        className="relative p-4 border border-violet-400/20 bg-black/40"
-       
-       
-       
-      >
-        <div className="absolute top-0 left-0 w-3 h-3 border-l-2 border-t-2 border-violet-400/30" />
-        <div className="absolute bottom-0 right-0 w-3 h-3 border-r-2 border-b-2 border-violet-400/30" />
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
-            <span className="text-lg font-black text-white">{profile.level}</span>
-          </div>
-          <div className="flex-1">
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-violet-400/60 tracking-wider uppercase">XP PROGRESS</span>
-              <span className="text-violet-400">{profile.xp.toLocaleString()} / {xpForNext.toLocaleString()}</span>
+      {primaryStartup ? (
+        <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+          <RunSlotCard startup={primaryStartup} featured />
+          <GameCard glow="amber" className="hud-corner">
+            <p className="text-[10px] font-black uppercase tracking-[0.32em] text-amber-300/65">Command Brief</p>
+            <h2 className="mt-2 text-xl font-black uppercase tracking-wider text-white">{objective.title}</h2>
+            <p className="mt-2 text-sm leading-relaxed text-white/55">{objective.description}</p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <CommandMetric label="Founder Week" value={runStep ? `${getShortRunStepLabel(runStep)} / 12` : "--"} />
+              <CommandMetric label="Phase" value={runStep ? getRunPhaseLabel(runStep) : "Standby"} />
+              <CommandMetric label="Demo Day" value={runStep ? getDemoDayCountdown(runStep) : "Awaiting Run"} />
+              <CommandMetric label="Best Score" value={bestEntry ? bestEntry.score.toLocaleString() : "Unranked"} />
             </div>
-            <div className="h-2 bg-white/5 relative overflow-hidden">
-              <div
-                className="absolute inset-y-0 left-0 bg-gradient-to-r from-violet-500 to-fuchsia-400"
-                style={{ width: `${xpProgress}%` }}
-              >
-                <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-r from-transparent to-white/40" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Your Units */}
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <Crosshair className="w-5 h-5 text-cyan-400" />
-          <h2 className="text-lg font-semibold tracking-wider text-white">YOUR UNITS</h2>
-          <div className="flex-1 h-px bg-gradient-to-r from-cyan-400/30 to-transparent" />
-        </div>
-        {startups.length === 0 ? (
-          <div className="relative p-8 text-center border border-cyan-400/20 bg-black/40">
-            <div className="absolute top-0 left-0 w-4 h-4 border-l-2 border-t-2 border-cyan-400/40" />
-            <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 border-cyan-400/40" />
-            <Rocket className="w-10 h-10 text-cyan-400/60 mx-auto mb-4" />
-            <h3 className="text-lg font-bold mb-2 text-white">No units deployed</h3>
-            <p className="text-white/40 text-sm mb-6 max-w-md mx-auto">
-              You haven&apos;t deployed any startups. Initialize your first venture and pitch to AI investors.
-            </p>
-            <Link href="/startup/new">
-              <div className="relative inline-flex items-center gap-2 px-6 py-3 border border-cyan-400/30 bg-cyan-400/10 hover:bg-cyan-400/20 transition-all cursor-pointer">
-                <div className="absolute top-0 left-0 w-2 h-2 border-l border-t border-cyan-400" />
-                <div className="absolute bottom-0 right-0 w-2 h-2 border-r border-b border-cyan-400" />
-                <Plus className="w-4 h-4 text-cyan-400" />
-                <span className="text-cyan-400 font-bold text-xs tracking-wider uppercase">DEPLOY UNIT</span>
-              </div>
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {startups.map((s) => (
-              <TacticalCard key={s.id} startup={s} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Action Cards */}
-      {actionCards.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {actionCards.map((action) => (
-            <div
-              key={action.label}
+            <Link
+              href={objective.href}
+              className="mt-4 inline-flex items-center gap-2 border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs font-black uppercase tracking-wider text-amber-300 transition-colors hover:bg-amber-500/20"
             >
-              <Link href={action.href}>
-                <div className={`relative p-4 border bg-black/40 cursor-pointer group ${
-                  action.color === "rose" ? "border-rose-400/30 hover:border-rose-400/60" :
-                  action.color === "amber" ? "border-amber-400/30 hover:border-amber-400/60" :
-                  "border-cyan-400/30 hover:border-cyan-400/60"
-                }`}>
-                  <div className="absolute top-0 left-0 w-2 h-2 border-l border-t border-current opacity-30" />
-                  <div className="absolute bottom-0 right-0 w-2 h-2 border-r border-b border-current opacity-30" />
-                  {action.pulse && <div className="absolute inset-0 border-2 border-rose-400/20 animate-pulse" />}
-                  <div className="flex items-center gap-3">
-                    <action.icon className={`w-5 h-5 ${
-                      action.color === "rose" ? "text-rose-400" :
-                      action.color === "amber" ? "text-amber-400" :
-                      "text-cyan-400"
-                    } ${action.pulse ? "animate-pulse" : ""}`} />
-                    <div className="flex-1">
-                      <p className="text-xs font-bold tracking-wider text-white">{action.label}</p>
-                      <p className="text-[10px] text-white/40">{action.desc}</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/60 ml-auto transition-colors" />
-                  </div>
-                </div>
-              </Link>
-            </div>
+              {objective.ctaLabel}
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </GameCard>
+        </section>
+      ) : (
+        <GameCard glow="cyan" className="hud-corner py-10 text-center">
+          <Rocket className="mx-auto mb-4 h-12 w-12 text-cyan-300/70" />
+          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-cyan-300/55">Empty Save Deck</p>
+          <h2 className="mt-2 text-2xl font-black uppercase tracking-wider text-white">No runs deployed</h2>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-white/45">
+            Start with a venture archetype, pitch the AI committee, and enter the first Founder Week.
+          </p>
+          <Link href="/startup/new" className="mt-6 inline-flex items-center gap-2 border border-cyan-500/35 bg-cyan-500/10 px-5 py-3 text-xs font-black uppercase tracking-wider text-cyan-300 transition-colors hover:bg-cyan-500/20">
+            Deploy Startup
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+        </GameCard>
+      )}
+
+      <section>
+        <div className="mb-3 flex items-center gap-3">
+          <Crosshair className="h-5 w-5 text-cyan-300" />
+          <h2 className="text-sm font-black uppercase tracking-[0.24em] text-white">Operation Slots</h2>
+          <div className="h-px flex-1 bg-gradient-to-r from-cyan-500/30 to-transparent" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {[...activeRuns, ...setupRuns, ...archivedRuns].map((startup) => (
+            <RunSlotCard key={startup.id} startup={startup} />
           ))}
         </div>
-      )}
+      </section>
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <DeckStat label="Active Runs" value={String(activeRuns.length)} tone="cyan" />
+        <DeckStat label="Portfolio Value" value={`$${(totalValue / 1_000_000).toFixed(1)}M`} tone="violet" />
+        <DeckStat label="Monthly Revenue" value={`$${(totalRevenue / 1_000).toFixed(0)}K`} tone="emerald" />
+      </section>
+    </GameScene>
+  );
+}
+
+function CommandMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-white/10 bg-white/[0.03] p-3">
+      <p className="text-[9px] font-black uppercase tracking-wider text-white/30">{label}</p>
+      <p className="mt-1 truncate text-sm font-black uppercase tracking-wider text-white">{value}</p>
     </div>
+  );
+}
+
+function DeckStat({ label, value, tone }: { label: string; value: string; tone: "cyan" | "violet" | "emerald" }) {
+  const classes = {
+    cyan: "border-cyan-500/25 bg-cyan-500/[0.06] text-cyan-300",
+    violet: "border-violet-500/25 bg-violet-500/[0.06] text-violet-300",
+    emerald: "border-emerald-500/25 bg-emerald-500/[0.06] text-emerald-300",
+  }[tone];
+
+  return (
+    <div className={cn("border p-4 hud-corner", classes)}>
+      <p className="text-[9px] font-black uppercase tracking-[0.28em] opacity-70">{label}</p>
+      <p className="mt-1 text-2xl font-black uppercase tracking-wider text-white">{value}</p>
+    </div>
+  );
+}
+
+function QuickLink({ href, icon, label }: { href: string; icon: ReactNode; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2 border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-black uppercase tracking-wider text-white/52 transition-colors hover:border-cyan-500/30 hover:text-cyan-300"
+    >
+      {icon}
+      {label}
+    </Link>
   );
 }

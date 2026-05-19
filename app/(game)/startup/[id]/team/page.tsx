@@ -3,21 +3,13 @@ import { notFound } from "next/navigation";
 import { getStartupById } from "@/lib/actions/startup";
 import { getTeamState } from "@/lib/actions/team";
 import { getNextBestActionForStartup } from "@/lib/onboarding/progress";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { TeamClient } from "./team-client";
-import { GameCard } from "@/components/game/GameCard";
-import { SectionHeader } from "@/components/game/SectionHeader";
+import { ArrowLeft, Lock, Skull } from "lucide-react";
+import { GameScene } from "@/components/game/GameScene";
+import { GameHudBar } from "@/components/game/GameHudBar";
+import { TeamCommand } from "@/components/game/TeamCommand";
 import { NextBestActionInline } from "@/components/onboarding/NextBestAction";
-
-function getDeterministicMorale(id: string): number {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = ((hash << 5) - hash) + id.charCodeAt(i);
-    hash |= 0;
-  }
-  return 80 + (Math.abs(hash) % 16);
-}
+import { getNextObjective, getStartupRunStep } from "@/lib/game/objectives";
+import { formatMoney } from "@/lib/game/team-scene";
 
 export const dynamic = "force-dynamic";
 
@@ -33,137 +25,146 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
 
   const teamState = await getTeamState(id);
   const nextAction = getNextBestActionForStartup(startup);
+  const objective = getNextObjective(startup);
+  const currentStep = getStartupRunStep(startup);
 
   // If not funded, show locked state
   if (startup.status !== "funded" && startup.status !== "active" && startup.status !== "dead" && startup.status !== "completed") {
     return (
-      <div className="max-w-7xl mx-auto pt-24 pb-12 px-4 md:px-8">
-        <div className="mb-6">
-          <Link href={`/startup/${id}`} className="text-sm text-white/40 hover:text-white">
-            ← Back to Startup
+      <GameScene
+        eyebrow="Team Command"
+        title="Founder Squad Locked"
+        subtitle="Hiring unlocks after funding. Secure capital before assembling the squad."
+        accent="rose"
+        actions={
+          <Link href={`/startup/${id}`} className="inline-flex items-center gap-2 border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-black uppercase tracking-wider text-white/45 hover:text-white">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Startup Dossier
           </Link>
-        </div>
-        <GameCard>
-          <div className="mb-4">
-            <h2 className="text-xl font-bold">Team Management Locked</h2>
-            <p className="text-white/40 text-sm mt-1">
-              You need to complete funding before you can build your team.
-            </p>
+        }
+      >
+        <GameHudBar
+          startupId={id}
+          startupName={startup.name}
+          currentStep={currentStep}
+          cash={startup.cash}
+          monthlyBurn={startup.monthlyBurn}
+          objective={objective}
+        />
+        <section className="border border-rose-500/25 bg-rose-500/[0.055] p-5 text-rose-300 hud-corner">
+          <div className="flex items-start gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center border border-rose-500/25 bg-rose-500/10">
+              <Lock className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.32em] opacity-70">Command Locked</p>
+              <h2 className="mt-1 text-xl font-black uppercase tracking-wider text-white">No capital, no squad draft.</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/58">
+                The team system remains locked until this startup closes funding. Review the VC verdict and term sheet before recruiting.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link href={`/startup/${id}/review`} className="border border-cyan-500/25 bg-cyan-500/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-cyan-300 hover:bg-cyan-500/20">
+                  VC Verdict
+                </Link>
+                <Link href={`/startup/${id}/terms`} className="border border-amber-500/25 bg-amber-500/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-amber-300 hover:bg-amber-500/20">
+                  Review Terms
+                </Link>
+              </div>
+            </div>
           </div>
-          <Link href={`/startup/${id}/terms`}>
-            <Button>Review Term Sheet</Button>
-          </Link>
-        </GameCard>
-      </div>
+        </section>
+      </GameScene>
     );
   }
 
-  const activeEmployees = startup.employees.filter((e) => e.status === "active");
-  const firedEmployees = startup.employees.filter((e) => e.status === "fired");
-
-  const avgMorale = activeEmployees.length > 0
-    ? Math.round(activeEmployees.reduce((sum, e) => sum + getDeterministicMorale(e.id), 0) / activeEmployees.length)
-    : 0;
+  const employeesForClient = startup.employees.map((employee) => ({
+    ...employee,
+    productivity: Number(employee.productivity),
+  }));
+  const firedEmployees = employeesForClient.filter((e) => e.status === "fired");
 
   return (
-    <div className="max-w-7xl mx-auto pt-24 pb-12 px-4 md:px-8">
-      <div className="mb-6">
-        <Link href={`/startup/${id}`} className="text-sm text-white/40 hover:text-white">
-          ← Back to Startup
+    <GameScene
+      eyebrow="Team Command"
+      title="Founder Squad Draft"
+      subtitle="Recruit operators, protect runway, and choose the base setup before the next sprint."
+      accent="violet"
+      actions={
+        <Link href={`/startup/${id}`} className="inline-flex items-center gap-2 border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-black uppercase tracking-wider text-white/45 hover:text-white">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Startup Dossier
         </Link>
-      </div>
-
-      {/* v2 Header */}
-      <div className="mb-6">
-        <p className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase mb-1">Crew Manifest</p>
-        <h1 className="text-2xl font-black text-white tracking-tight">Team</h1>
-      </div>
-
+      }
+    >
+      <GameHudBar
+        startupId={id}
+        startupName={startup.name}
+        currentStep={currentStep}
+        cash={startup.cash}
+        monthlyBurn={startup.monthlyBurn}
+        objective={objective}
+      />
       {nextAction && (
-        <div className="mb-8">
+        <div>
           <NextBestActionInline action={nextAction} />
         </div>
       )}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-8">
-        <GameCard className="p-3 text-center hud-corner" variant="default">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Size</p>
-          <p className="text-xl font-black text-white">{activeEmployees.length}</p>
-        </GameCard>
-        <GameCard className="p-3 text-center hud-corner" variant="default">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Morale</p>
-          <p className={`text-xl font-black ${avgMorale > 80 ? "text-emerald-400" : avgMorale > 60 ? "text-amber-400" : "text-rose-400"}`}>
-            {avgMorale}%
-          </p>
-        </GameCard>
-        <GameCard className="p-3 text-center hud-corner" variant="default">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Payroll</p>
-          <p className="text-xl font-black text-violet-400">${teamState.payroll.toLocaleString()}</p>
-        </GameCard>
-      </div>
-
-      {/* Current Office */}
-      <GameCard className="mb-8">
-        <SectionHeader title="Office Setup" subtitle="Current workspace arrangement" className="mb-4" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <GameCard glow="cyan" variant="solid" className="p-4">
-            <div className="font-semibold text-white">{teamState.officeSetup.label}</div>
-            <div className="text-sm text-white/40 mt-1">${teamState.officeSetup.monthlyCost.toLocaleString()}/mo</div>
-            <div className="text-xs text-white/40 mt-2">{teamState.officeSetup.description}</div>
-          </GameCard>
-        </div>
-      </GameCard>
-
-      {/* Resignation Warning */}
       {teamState.resignRisk && (
-        <GameCard glow="rose" className="mb-8">
+        <section className="border border-rose-500/25 bg-rose-500/[0.055] p-4 text-rose-300 hud-corner">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5">
-              <div className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
+            <div className="grid h-9 w-9 shrink-0 place-items-center border border-rose-500/25 bg-rose-500/10">
+              <Skull className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-rose-300">Resignation Risk</h3>
-              <p className="text-sm text-rose-200/80 mt-1">
+              <h3 className="text-sm font-black uppercase tracking-wider text-white">Resignation Risk</h3>
+              <p className="mt-1 text-sm text-rose-200/80">
                 <strong>{teamState.resignRisk.name}</strong> ({teamState.resignRisk.role}) is at risk of resigning
                 due to low morale ({teamState.resignRisk.morale}%). Consider improving conditions.
               </p>
             </div>
           </div>
-        </GameCard>
+        </section>
       )}
 
-      {/* Interactive Team Management */}
       {(startup.status === "funded" || startup.status === "active") && (
-        <TeamClient
+        <TeamCommand
           startupId={id}
-          employees={startup.employees}
+          startupStatus={startup.status}
+          cash={startup.cash}
+          monthlyBurn={startup.monthlyBurn}
+          employees={employeesForClient}
           candidates={teamState.candidates}
           capacity={teamState.capacity}
           currentOffice={startup.workSetup}
+          payroll={teamState.payroll}
+          productivity={teamState.productivity}
+          morale={teamState.morale}
         />
       )}
 
-      {/* Fired Employees */}
       {firedEmployees.length > 0 && (
-        <div className="mt-8">
-          <SectionHeader title="Former Employees" subtitle={`${firedEmployees.length} past team member(s)`} accent="violet" />
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-[0.22em] text-white">Archived Squad Members</h2>
+            <p className="mt-1 text-xs text-white/38">{firedEmployees.length} past recruit(s)</p>
+          </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {firedEmployees.map((emp) => (
-              <GameCard key={emp.id} className="opacity-60">
-                <div className="flex items-start justify-between mb-2">
+              <article key={emp.id} className="border border-white/10 bg-white/[0.025] p-4 opacity-65 hud-corner">
+                <div className="mb-2 flex items-start justify-between gap-3">
                   <div>
-                    <div className="font-semibold text-white">{emp.name}</div>
-                    <div className="text-sm text-white/40">{emp.role}</div>
+                    <div className="text-sm font-black uppercase tracking-wider text-white">{emp.name}</div>
+                    <div className="text-xs text-white/40">{emp.role}</div>
                   </div>
-                  <Badge variant="destructive">Fired</Badge>
+                  <span className="border border-rose-500/25 bg-rose-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-rose-300">Removed</span>
                 </div>
-                <p className="text-sm text-white/40">Salary was ${emp.salary.toLocaleString()}/mo</p>
-              </GameCard>
+                <p className="text-sm text-white/40">Salary was {formatMoney(emp.salary)}/mo</p>
+              </article>
             ))}
           </div>
-        </div>
+        </section>
       )}
-    </div>
+    </GameScene>
   );
 }

@@ -5,6 +5,7 @@ import { getTermSheet } from "@/lib/actions/terms";
 import { getNextBestActionForStartup } from "@/lib/onboarding/progress";
 import { GameCard } from "@/components/game/GameCard";
 import { GameCeremonyModal } from "@/components/game/GameCeremonyModal";
+import { GameHudBar } from "@/components/game/GameHudBar";
 import { StatusBadge } from "@/components/game/StatusBadge";
 import { OutcomeBadge } from "@/components/game/OutcomeBadge";
 import { StartupRunHud } from "@/components/game/StartupRunHud";
@@ -34,6 +35,7 @@ import {
 import { buildFinalResultCtas, getOutcomeCeremony } from "@/lib/gamefeel/ceremony";
 import { buildFirstRunAction } from "@/lib/gamefeel/first-run";
 import { getFinalVerdictLabel, getShortRunStepLabel } from "@/lib/game-time/time-scale";
+import { getNextObjective } from "@/lib/game/objectives";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +97,7 @@ export default async function StartupProfilePage({ params }: { params: Promise<{
     monthsRun: startup.simulationMonths.length,
     teamSize: activeEmployees.length,
   });
+  const currentObjective = getNextObjective(startup);
 
   return (
     <div className="max-w-5xl mx-auto pt-24 pb-12 px-4 md:px-8 space-y-5">
@@ -134,6 +137,16 @@ export default async function StartupProfilePage({ params }: { params: Promise<{
         nextAction={firstRunAction}
         currentStep={runStep}
         hasTeam={activeEmployees.length > 0}
+      />
+
+      <GameHudBar
+        startupId={id}
+        startupName={startup.name}
+        currentStep={runStep}
+        cash={startup.cash}
+        monthlyBurn={startup.monthlyBurn}
+        activeIncidents={0}
+        objective={currentObjective}
       />
 
       <SprintPhaseBanner

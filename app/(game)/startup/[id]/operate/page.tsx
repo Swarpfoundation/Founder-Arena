@@ -16,11 +16,13 @@ import { RewardPopup } from "@/components/game/RewardPopup";
 import { StartupRunHud } from "@/components/game/StartupRunHud";
 import { SprintPhaseBanner } from "@/components/game/SprintPhaseBanner";
 import { EventImpactBanner } from "@/components/game/EventImpactBanner";
-import { PageReveal } from "@/components/game/PageReveal";
 import { MonthOneBriefing } from "@/components/game/MonthOneBriefing";
+import { GameScene } from "@/components/game/GameScene";
+import { GameHudBar } from "@/components/game/GameHudBar";
 import { cn } from "@/lib/utils";
 import { buildFinalResultCtas, getOutcomeCeremony } from "@/lib/gamefeel/ceremony";
 import { buildDeathWarningPresentations } from "@/lib/gamefeel/critical-events";
+import { getNextObjective, getStartupRunStep } from "@/lib/game/objectives";
 import { buildInfrastructureEventPresentation } from "@/lib/infrastructure";
 import {
   getDemoDayLabel,
@@ -47,6 +49,11 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
   const history = startup.simulationMonths;
   const currentBurn = simState.trueMonthlyBurn ?? startup.monthlyBurn;
   const nextStep = simState.currentMonth + 1;
+  const runStep = getStartupRunStep(startup);
+  const objective = getNextObjective({
+    ...startup,
+    openInfrastructureEvent: Boolean(simState.openInfrastructureEvent),
+  });
   const displayStep =
     startup.status === "completed" || startup.status === "dead"
       ? Math.max(1, Math.min(12, history.length || 12))
@@ -66,17 +73,19 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
   // If not funded, show locked state
   if (startup.status !== "funded" && startup.status !== "active" && startup.status !== "dead" && startup.status !== "completed") {
     return (
-      <div>
-        <div className="max-w-5xl mx-auto pt-24 pb-12 px-4 md:px-8">
-          <div className="mb-6">
-            <Link
-              href={`/startup/${id}`}
-              className="inline-flex items-center gap-1 text-sm text-white/40 hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Startup
-            </Link>
-          </div>
+      <GameScene
+        eyebrow="Operations Command"
+        title="Operating Center Locked"
+        subtitle="Funding must be secured before this run can enter sprint resolution."
+        accent="violet"
+      >
+          <Link
+            href={`/startup/${id}`}
+            className="inline-flex items-center gap-1 text-sm text-white/40 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Startup
+          </Link>
           <GameCard glow="violet" className="hud-corner">
             <div className="mb-4">
               <h2 className="text-xl font-bold text-white">Operating Center Locked</h2>
@@ -92,37 +101,42 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
               </div>
             </Link>
           </GameCard>
-        </div>
-      </div>
+      </GameScene>
     );
   }
 
   const totalUsers = history.reduce((sum, m) => sum + m.userGrowth, 0) + 100;
 
   return (
-    <PageReveal>
-      <div className="max-w-5xl mx-auto pt-24 pb-12 px-4 md:px-8">
-        <div className="mb-6">
-          <Link
-            href={`/startup/${id}`}
-            className="inline-flex items-center gap-1 text-sm text-white/40 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Startup
-          </Link>
-        </div>
+    <GameScene
+      eyebrow="Operations Command"
+      title={
+        startup.status === "dead"
+          ? getFinalVerdictLabel()
+          : startup.status === "completed"
+          ? getDemoDayLabel()
+          : getRunStepLabel(nextStep)
+      }
+      subtitle="Choose sprint actions, scan active threats, and resolve the next command turn."
+      accent={deathWarnings.length > 0 ? "rose" : simState.openInfrastructureEvent ? "amber" : "cyan"}
+    >
+        <Link
+          href={`/startup/${id}`}
+          className="inline-flex items-center gap-1 text-sm text-white/40 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Startup
+        </Link>
 
-        {/* Header */}
-        <div className="mb-5">
-          <p className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase mb-1">Operating Center</p>
-          <h1 className="text-2xl font-black text-white tracking-tight">
-            {startup.status === "dead"
-              ? getFinalVerdictLabel()
-              : startup.status === "completed"
-              ? getDemoDayLabel()
-              : getRunStepLabel(nextStep)}
-          </h1>
-        </div>
+        <GameHudBar
+          startupId={id}
+          startupName={startup.name}
+          currentStep={runStep}
+          cash={startup.cash}
+          monthlyBurn={currentBurn}
+          activeIncidents={deathWarnings.length + (simState.openInfrastructureEvent ? 1 : 0)}
+          objective={objective}
+        />
 
         <StartupRunHud
           startupId={id}
@@ -216,6 +230,13 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
             advisor={simState.advisor}
             missionCoach={simState.missionCoach}
             costBreakdown={simState.costBreakdown}
+            productProgress={startup.productProgress}
+            riskScore={startup.riskScore ?? 50}
+            investorScore={startup.investorScore ?? 50}
+            openInfrastructureEvent={simState.openInfrastructureEvent ? {
+              title: simState.openInfrastructureEvent.title,
+              severity: simState.openInfrastructureEvent.severity,
+            } : null}
           />
         )}
 
@@ -285,8 +306,7 @@ export default async function OperatePage({ params }: { params: Promise<{ id: st
             <FinalOutcome startupId={id} />
           </div>
         )}
-      </div>
-    </PageReveal>
+    </GameScene>
   );
 }
 

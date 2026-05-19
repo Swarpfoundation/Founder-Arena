@@ -29,7 +29,7 @@ export async function getCurrentUser() {
  * Use this in server actions that require auth.
  */
 export async function requireCurrentUser() {
-  const user = await getCurrentUser();
+  const user = await getCurrentUserOrDevDemoUser();
 
   if (!user) {
     throw new Error("Unauthorized: Please sign in to continue.");
@@ -74,7 +74,7 @@ export async function getCurrentUserOrDevDemoUser() {
  * Use this in server components that require auth.
  */
 export async function requireAuthRedirect(returnPath?: string) {
-  const user = await getCurrentUser();
+  const user = await getCurrentUserOrDevDemoUser();
   if (!user) {
     const redirectUrl = returnPath
       ? `/login?callbackUrl=${encodeURIComponent(returnPath)}`

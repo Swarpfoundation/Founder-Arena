@@ -15,8 +15,8 @@ export function getLandingCtaState(isAuthenticated: boolean) {
     ? {
         primaryHref: "/dashboard",
         primaryLabel: "CONTINUE FOUNDER ARENA",
-        secondaryHref: "/career",
-        secondaryLabel: "OPEN DASHBOARD",
+        secondaryHref: "/startup/new",
+        secondaryLabel: "DEPLOY NEW RUN",
       }
     : {
         primaryHref: "/startup/new",

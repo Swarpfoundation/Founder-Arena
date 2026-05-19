@@ -34,8 +34,8 @@ describe("auth redirect helpers", () => {
     expect(getLandingCtaState(true)).toMatchObject({
       primaryHref: "/dashboard",
       primaryLabel: "CONTINUE FOUNDER ARENA",
-      secondaryHref: "/career",
-      secondaryLabel: "OPEN DASHBOARD",
+      secondaryHref: "/startup/new",
+      secondaryLabel: "DEPLOY NEW RUN",
     });
   });
 });

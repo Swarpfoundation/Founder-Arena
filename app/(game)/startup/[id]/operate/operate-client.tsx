@@ -4,17 +4,25 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { runMonthlySimulationAction } from "@/lib/actions/simulation";
-import { DecisionOption } from "@/lib/simulation/decisions";
+import { DECISION_CATALOG, DecisionOption } from "@/lib/simulation/decisions";
 import { SimulationEvent } from "@/lib/events/types";
 import { previewChoiceEffects } from "@/lib/events/event-selection";
 import { GameCard } from "@/components/game/GameCard";
 import { ProgressBar } from "@/components/game/ProgressBar";
 import { StatDeltaRecap, type RecapHighlight } from "@/components/game/StatDeltaRecap";
 import { EventRevealPanel } from "@/components/game/EventRevealPanel";
+import { ActionDeck, EndSprintConsole, SprintResolutionSequence, ThreatRadar } from "@/components/game/OperateCommand";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { cn } from "@/lib/utils";
 import type { StatDeltaItem } from "@/lib/gamefeel/ceremony";
 import { buildSimulationEventPresentation } from "@/lib/gamefeel/critical-events";
+import {
+  buildResolutionStages,
+  getActionCardPresentation,
+  getEndSprintConsolePresentation,
+  getLockedDecisionReason,
+  getThreatRadarItems,
+} from "@/lib/game/operate-turn";
 import {
   getDemoDayLabel,
   getDemoDayCountdown,
@@ -26,9 +34,7 @@ import {
   getSprintNextActionHint,
 } from "@/lib/game-time/time-scale";
 import {
-  Zap,
   TrendingUp,
-  Check,
   AlertTriangle,
   Clock,
   Target,
@@ -63,38 +69,11 @@ const SEVERITY_COLORS = {
   },
 };
 
-const DECISION_GRADIENTS: Record<string, string> = {
-  marketing_spend: "from-cyan-500 to-blue-500",
-  hire_sales: "from-violet-500 to-fuchsia-500",
-  product_focus: "from-emerald-500 to-teal-500",
-  cut_costs: "from-amber-500 to-orange-500",
-  hire_engineer: "from-cyan-500 to-blue-500",
-  hire_compliance: "from-violet-500 to-fuchsia-500",
-  launch_beta: "from-emerald-500 to-teal-500",
-  improve_security: "from-amber-500 to-orange-500",
-  customer_interviews: "from-cyan-500 to-blue-500",
-  enterprise_push: "from-violet-500 to-fuchsia-500",
-  delay_launch: "from-emerald-500 to-teal-500",
-  fundraising_prep: "from-amber-500 to-orange-500",
-};
-
 const EVENT_CHOICE_STYLES = [
   { border: "border-cyan-500/30", bg: "bg-cyan-500/10", hover: "hover:bg-cyan-500/20", text: "text-cyan-400" },
   { border: "border-rose-500/30", bg: "bg-rose-500/10", hover: "hover:bg-rose-500/20", text: "text-rose-400" },
   { border: "border-amber-500/30", bg: "bg-amber-500/10", hover: "hover:bg-amber-500/20", text: "text-amber-400" },
 ];
-
-function getImpactLabel(d: DecisionOption): string {
-  if (d.id === "cut_costs") return "Runway +";
-  if (d.revenueDelta >= 8000) return "Revenue +";
-  if (d.revenueDelta > 0) return "Revenue +";
-  if (d.productDelta >= 10) return "Velocity +";
-  if (d.productDelta > 0) return "Velocity +";
-  if (d.investorDelta >= 5) return "Investor +";
-  if (d.investorDelta > 0) return "Investor +";
-  if (d.riskDelta < -4) return "Risk --";
-  return "Strategic";
-}
 
 interface OperateClientProps {
   startupId: string;
@@ -112,6 +91,10 @@ interface OperateClientProps {
   advisor: OperationsAdvisorResult | null;
   missionCoach: MissionCoachResult | null;
   costBreakdown?: TotalCostEstimate | null;
+  productProgress: number;
+  riskScore: number;
+  investorScore: number;
+  openInfrastructureEvent?: { title: string; severity: "minor" | "moderate" | "critical" } | null;
 }
 
 interface MonthRecapPayload {
@@ -148,6 +131,10 @@ export function OperateClient({
   advisor,
   missionCoach,
   costBreakdown,
+  productProgress,
+  riskScore,
+  investorScore,
+  openInfrastructureEvent,
 }: OperateClientProps) {
   const router = useRouter();
   const [selectedDecisions, setSelectedDecisions] = useState<string[]>([]);
@@ -156,6 +143,7 @@ export function OperateClient({
   const [result, setResult] = useState<SimulationActionResult | null>(null);
   const [monthRecap, setMonthRecap] = useState<MonthRecapPayload | null>(null);
   const [monthComplete, setMonthComplete] = useState(false);
+  const [lastDecisionCount, setLastDecisionCount] = useState(0);
   const [pending, setPending] = useState(false);
   const reduced = useReducedMotion();
 
@@ -171,6 +159,38 @@ export function OperateClient({
   const eventPresentation = hasEvent
     ? buildSimulationEventPresentation({ startupId, event: monthlyEvent })
     : null;
+  const availableById = new Map(availableDecisions.map((decision) => [decision.id, decision]));
+  const actionCards = DECISION_CATALOG.map((baseDecision) => {
+    const decision = availableById.get(baseDecision.id) ?? baseDecision;
+    const lockedReason = availableById.has(baseDecision.id)
+      ? undefined
+      : getLockedDecisionReason(baseDecision, { cash, productProgress, month: nextMonth });
+    return getActionCardPresentation(decision, {
+      selected: selectedDecisions.includes(baseDecision.id),
+      lockedReason,
+    });
+  });
+  const runwayMonths = Math.floor(cash / Math.max(monthlyBurn, 1));
+  const threatItems = getThreatRadarItems({
+    startupId,
+    cash,
+    monthlyBurn,
+    revenue,
+    riskScore,
+    investorScore,
+    currentMonth: currentMonth,
+    monthlyEvent: monthlyEvent ? { title: monthlyEvent.title, severity: monthlyEvent.severity } : null,
+    openInfrastructureEvent,
+    nextMoves,
+  });
+  const endSprintConsole = getEndSprintConsolePresentation({
+    selectedCount: selectedDecisions.length,
+    eventResolved,
+    pending,
+    currentWeek: nextMonth,
+    runwayMonths,
+    hasMonthlyEvent: hasEvent,
+  });
 
   function toggleDecision(id: string) {
     setSelectedDecisions((prev) => {
@@ -186,6 +206,7 @@ export function OperateClient({
     setResult(null);
     setMonthRecap(null);
     setMonthComplete(false);
+    setLastDecisionCount(selectedDecisions.length);
     setPending(true);
 
     try {
@@ -236,8 +257,21 @@ export function OperateClient({
               </motion.div>
               <div className="flex items-center gap-2 justify-center mt-4">
                 <div className="w-2 h-2 bg-cyan-400 animate-pulse" />
-                <p className="text-xs text-slate-400 tracking-widest">SIMULATING SPRINT</p>
+                <p className="text-xs text-slate-400 tracking-widest">RESOLVING SPRINT</p>
                 <div className="w-2 h-2 bg-cyan-400 animate-pulse" />
+              </div>
+              <div className="mt-6 grid gap-2 text-left">
+                {[
+                  "Processing burn and revenue...",
+                  "Checking market pressure...",
+                  "Scanning rivals...",
+                  "Updating board confidence...",
+                  "Calculating runway...",
+                ].map((line) => (
+                  <p key={line} className="border border-cyan-500/15 bg-cyan-500/5 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-cyan-100/55">
+                    {line}
+                  </p>
+                ))}
               </div>
             </div>
           </motion.div>
@@ -362,6 +396,8 @@ export function OperateClient({
           </button>
         </GameCard>
       )}
+
+      <ThreatRadar items={threatItems} />
 
       {/* Active Mission */}
       {activeMission && (
@@ -648,60 +684,12 @@ export function OperateClient({
         </GameCard>
       )}
 
-      {/* Decision Cards */}
+      {/* Action Deck */}
       {eventResolved && (
-        <div>
-          <h3 className="text-sm font-bold text-white mb-3 tracking-wider uppercase flex items-center gap-2">
-            <Target className="w-4 h-4 text-cyan-400" />
-            Sprint Decisions
-          </h3>
-          <div className="space-y-2">
-            {availableDecisions.map((decision, i) => {
-              const isSelected = selectedDecisions.includes(decision.id);
-              const gradient = DECISION_GRADIENTS[decision.id] ?? "from-cyan-500 to-blue-500";
-              return (
-                <motion.button
-                  key={decision.id}
-                  className={cn(
-                    "w-full game-card p-4 text-left transition-all hud-corner",
-                    isSelected
-                      ? "border-cyan-500/40 bg-cyan-500/10"
-                      : "border-white/5 hover:border-white/10"
-                  )}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + i * 0.05 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => toggleDecision(decision.id)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={cn("w-10 h-10 bg-gradient-to-br flex items-center justify-center flex-shrink-0", gradient)}>
-                      <Zap className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-white">{decision.label}</p>
-                      <p className="text-[10px] text-slate-500">{decision.description}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-xs font-bold text-rose-400">
-                        {decision.cashCost > 0 ? `-$${(decision.cashCost / 1000).toFixed(0)}K` : "Free"}
-                      </p>
-                      <p className="text-[10px] text-emerald-400">{getImpactLabel(decision)}</p>
-                    </div>
-                    {isSelected && (
-                      <div className="ml-2 flex-shrink-0 flex items-center justify-center bg-cyan-500/20 border border-cyan-500/30 w-7 h-7 text-cyan-300 text-xs font-bold">
-                        <Check className="w-4 h-4" />
-                      </div>
-                    )}
-                  </div>
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
+        <ActionDeck cards={actionCards} onToggle={toggleDecision} />
       )}
 
-      {/* Run Sprint Button */}
+      {/* End Sprint Console */}
       {eventResolved && (
         <div className="space-y-3">
           <div className="border border-cyan-500/20 bg-cyan-500/5 p-3 hud-corner">
@@ -712,21 +700,7 @@ export function OperateClient({
             </div>
             <p className="text-xs leading-relaxed text-white/50">{nextSprintHint}</p>
           </div>
-          <motion.button
-            className={cn(
-              "w-full h-16 font-black text-lg tracking-wider flex items-center justify-center gap-3 transition-all border",
-              selectedDecisions.length > 0 && !pending
-                ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-400 glow-cyan"
-                : "bg-slate-800/50 border-slate-700/50 text-slate-500 cursor-not-allowed"
-            )}
-            whileHover={selectedDecisions.length > 0 && !pending ? { scale: 1.03, y: -2 } : undefined}
-            whileTap={selectedDecisions.length > 0 && !pending ? { scale: 0.97 } : undefined}
-            onClick={handleSubmit}
-            disabled={!selectedDecisions.length || pending}
-          >
-            <Clock className="w-6 h-6" />
-            {selectedDecisions.length > 0 ? "RUN SPRINT" : "SELECT DECISION"}
-          </motion.button>
+          <EndSprintConsole presentation={endSprintConsole} onRun={handleSubmit} />
         </div>
       )}
 
@@ -746,6 +720,7 @@ export function OperateClient({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
           >
+            <SprintResolutionSequence stages={buildResolutionStages({ recap: monthRecap })} />
             {monthRecap && (
               <StatDeltaRecap
                 title={`${getRunStepLabel(monthRecap.month)} Sprint Recap`}
@@ -764,7 +739,7 @@ export function OperateClient({
               <div className="grid grid-cols-3 gap-3">
                 <div className="p-3 bg-emerald-500/10">
                   <p className="text-[10px] text-emerald-400/60 uppercase">Decisions</p>
-                  <p className="text-lg font-black text-emerald-400">{selectedDecisions.length}</p>
+                  <p className="text-lg font-black text-emerald-400">{lastDecisionCount}</p>
                 </div>
                 <div className="p-3 bg-cyan-500/10">
                   <p className="text-[10px] text-cyan-400/60 uppercase">Week</p>
@@ -796,6 +771,7 @@ export function OperateClient({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
           >
+            <SprintResolutionSequence stages={buildResolutionStages({ recap: result.recap, finalOutcome: result.outcome })} />
             {result.recap && (
               <StatDeltaRecap
                 title={`${getDemoDayLabel()} Sprint ${result.recap.month} Recap`}

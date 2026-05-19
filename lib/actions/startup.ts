@@ -146,7 +146,13 @@ export async function getUserStartups() {
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
     take: 50,
-    include: { simulationMonths: { select: { monthNumber: true } }, employees: true },
+    include: {
+      pitchDeck: { select: { id: true } },
+      vcReviews: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, decision: true } },
+      termSheets: { orderBy: { createdAt: "desc" }, take: 3, select: { id: true, status: true } },
+      simulationMonths: { select: { monthNumber: true } },
+      employees: true,
+    },
   });
 }
 

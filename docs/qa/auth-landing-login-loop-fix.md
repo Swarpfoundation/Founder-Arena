@@ -5,15 +5,15 @@ This checklist verifies the auth-aware landing and login redirect fix.
 ## Logged Out
 
 1. Open `/`.
-2. Confirm landing shows `LOGIN`.
-3. Click `LOGIN`.
+2. Confirm the title screen shows `START NEW RUN` and a `LOGIN` secondary action.
+3. Click `LOGIN` or `START NEW RUN`.
 4. Complete OAuth.
 5. Confirm user lands on `/dashboard`.
 
 ## Logged In
 
 1. Open `/`.
-2. Confirm landing shows `CONTINUE FOUNDER ARENA` and `OPEN DASHBOARD`, not `LOGIN`.
+2. Confirm landing shows `PRESS START` / `CONTINUE FOUNDER ARENA` and `DEPLOY NEW RUN`, not `LOGIN` as the primary action.
 3. Open `/login`.
 4. Confirm it redirects to `/dashboard` or a sanitized internal callback.
 
