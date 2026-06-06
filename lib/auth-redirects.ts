@@ -11,17 +11,12 @@ export function sanitizeAuthCallbackUrl(callbackUrl: string | null | undefined):
 }
 
 export function getLandingCtaState(isAuthenticated: boolean) {
-  return isAuthenticated
-    ? {
-        primaryHref: "/dashboard",
-        primaryLabel: "CONTINUE FOUNDER ARENA",
-        secondaryHref: "/startup/new",
-        secondaryLabel: "DEPLOY NEW RUN",
-      }
-    : {
-        primaryHref: "/startup/new",
-        primaryLabel: "START NEW RUN",
-        secondaryHref: "/login",
-        secondaryLabel: "LOGIN",
-      };
+  void isAuthenticated;
+
+  return {
+    primaryHref: "#platforms",
+    primaryLabel: "MOBILE BETA INFO",
+    secondaryHref: "#game",
+    secondaryLabel: "LEARN ABOUT THE GAME",
+  };
 }

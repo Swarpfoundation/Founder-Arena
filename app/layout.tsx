@@ -13,7 +13,7 @@ const geistMono = GeistMono;
 export const metadata: Metadata = {
   title: "Founder Arena",
   description:
-    "AI-powered startup strategy game. Pitch your idea, raise funding, build your team, and survive 12 Founder Weeks of volatile markets.",
+    "Founder Arena is a mobile startup roguelike in development for iOS and Android. Build, pitch, raise, hire, operate, and survive Demo Day.",
   keywords: [
     "startup",
     "simulation",
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   authors: [{ name: "Founder Arena" }],
   openGraph: {
     title: "Founder Arena",
-    description: "AI-powered startup strategy game",
+    description: "Mobile startup roguelike in development for iOS and Android.",
     type: "website",
   },
 };

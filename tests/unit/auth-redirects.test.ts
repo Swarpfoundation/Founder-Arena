@@ -21,21 +21,21 @@ describe("auth redirect helpers", () => {
     expect(sanitizeAuthCallbackUrl("/api/auth/signin")).toBe("/dashboard");
   });
 
-  it("returns logged-out landing CTA state", () => {
+  it("returns mobile marketing landing CTA state for logged-out visitors", () => {
     expect(getLandingCtaState(false)).toMatchObject({
-      primaryHref: "/startup/new",
-      primaryLabel: "START NEW RUN",
-      secondaryHref: "/login",
-      secondaryLabel: "LOGIN",
+      primaryHref: "#platforms",
+      primaryLabel: "MOBILE BETA INFO",
+      secondaryHref: "#game",
+      secondaryLabel: "LEARN ABOUT THE GAME",
     });
   });
 
-  it("returns authenticated landing CTA state", () => {
+  it("keeps authenticated users on the same marketing CTA state", () => {
     expect(getLandingCtaState(true)).toMatchObject({
-      primaryHref: "/dashboard",
-      primaryLabel: "CONTINUE FOUNDER ARENA",
-      secondaryHref: "/startup/new",
-      secondaryLabel: "DEPLOY NEW RUN",
+      primaryHref: "#platforms",
+      primaryLabel: "MOBILE BETA INFO",
+      secondaryHref: "#game",
+      secondaryLabel: "LEARN ABOUT THE GAME",
     });
   });
 });
