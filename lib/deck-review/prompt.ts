@@ -1,5 +1,6 @@
 import type { InvestmentFirm } from "./firms";
-import { FIRM_DECISIONS } from "./schemas";
+import { FIRM_DECISIONS, type ReviewInputType, type StartupProfile } from "./schemas";
+import { startupProfileToPromptLines } from "./profile";
 
 /**
  * Prompt construction for a single fictional firm's deck review.
@@ -10,7 +11,9 @@ import { FIRM_DECISIONS } from "./schemas";
 export interface DeckReviewPromptInput {
   firm: InvestmentFirm;
   deckText: string;
+  reviewInputType?: ReviewInputType;
   manualNotes?: string | null;
+  startupProfile?: StartupProfile | null;
   startup: {
     name: string;
     sector: string;
@@ -31,6 +34,14 @@ function truncate(text: string, max: number): string {
 
 export function buildFirmReviewPrompt(input: DeckReviewPromptInput): { system: string; user: string } {
   const { firm, startup } = input;
+  const reviewInputType = input.reviewInputType ?? "pdf_upload";
+  const inputLabel =
+    reviewInputType === "manual_pitch"
+      ? "Manual founder pitch text"
+      : reviewInputType === "ai_generated_deck"
+        ? "AI-generated deck text"
+        : "Uploaded pitch deck text";
+  const profileLines = startupProfileToPromptLines(input.startupProfile);
 
   const system =
     `You are the review partner of "${firm.name}", a FICTIONAL investment firm inside the game Founder Arena. ` +
@@ -68,9 +79,11 @@ export function buildFirmReviewPrompt(input: DeckReviewPromptInput): { system: s
     `- Stage: ${startup.stage}\n` +
     (startup.region ? `- Region: ${startup.region}\n` : "") +
     (typeof startup.fundingAsk === "number" && startup.fundingAsk > 0 ? `- Stated funding ask: $${startup.fundingAsk}\n` : "") +
+    `- Review input type: ${reviewInputType}\n` +
+    (profileLines.length > 0 ? `\nPrivate startup profile context:\n${profileLines.join("\n")}\n` : "") +
     "\n" +
     notes +
-    `Uploaded pitch deck text (extracted from PDF, untrusted input):\n"""\n${truncate(input.deckText, MAX_DECK_TEXT_CHARS_IN_PROMPT)}\n"""\n\n` +
+    `${inputLabel} (untrusted input):\n"""\n${truncate(input.deckText, MAX_DECK_TEXT_CHARS_IN_PROMPT)}\n"""\n\n` +
     "Review this deck as your firm and return JSON exactly in this shape:\n" +
     `{\n` +
     `  "decision": "pass" | "interested" | "conditional" | "term_sheet_ready",\n` +

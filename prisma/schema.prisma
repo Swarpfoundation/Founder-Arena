@@ -51,6 +51,7 @@ model User {
   usageLedger   UsageLedger[]
   queuedActions QueuedAction[]
   deckReviewJobs VcDeckReviewJob[]
+  deckGenerationJobs VcDeckGenerationJob[]
 
   @@map("users")
 }
@@ -146,6 +147,7 @@ model Startup {
   growthOffers       GrowthOffer[]
   missions           Mission[]
   deckReviewJobs     VcDeckReviewJob[]
+  deckGenerationJobs VcDeckGenerationJob[]
 
   socialState        SocialState?
 
@@ -636,16 +638,22 @@ model VcDeckReviewJob {
   id                     String    @id @default(cuid())
   userId                 String
   startupId              String
+  reviewInputType        String    @default("pdf_upload")
   status                 String    @default("uploaded")
-  deckStorageKey         String
-  deckSha256             String
-  deckFileName           String
-  deckSizeBytes          Int
+  deckStorageKey         String?
+  deckSha256             String?
+  deckFileName           String?
+  deckSizeBytes          Int       @default(0)
   deckPageCount          Int?
   extractedText          String?   @db.Text
   extractedTextSha256    String?
   extractedTextTruncated Boolean   @default(false)
   manualNotes            String?   @db.Text
+  startupProfile         Json?
+  generatedDeck          Json?
+  sourceSummary          String?
+  accessConsumedAt       DateTime?
+  accessUsedCredit       Boolean   @default(false)
   selectedFirmIds        Json
   provider               String?
   model                  String?
@@ -665,5 +673,35 @@ model VcDeckReviewJob {
   @@index([startupId])
   @@index([status])
   @@index([createdAt])
+  @@index([reviewInputType])
   @@map("vc_deck_review_jobs")
+}
+
+model VcDeckGenerationJob {
+  id                String    @id @default(cuid())
+  userId            String
+  startupId         String
+  status            String    @default("completed")
+  requestText       String    @db.Text
+  startupProfile    Json?
+  generatedDeck     Json?
+  provider          String?
+  model             String?
+  errorCategory     String?
+  safeErrorMessage  String?
+  accessConsumedAt  DateTime?
+  accessUsedCredit  Boolean   @default(false)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startup Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([startupId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("vc_deck_generation_jobs")
 }

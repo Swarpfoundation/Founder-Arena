@@ -17,7 +17,9 @@ export type ReferralRewardReason =
   | "referred_first_review"
   | "beta_bonus"
   | "manual_admin_future"
-  | "weekly_cap_bypass";
+  | "weekly_cap_bypass"
+  | "ai_deck_review"
+  | "ai_deck_generation";
 
 export interface ReferralRewardLedgerEntry {
   version: typeof REFERRAL_REWARD_VERSION;

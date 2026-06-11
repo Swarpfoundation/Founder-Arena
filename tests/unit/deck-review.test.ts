@@ -8,13 +8,20 @@ import {
   autoSelectFirmsForSector,
   buildDeckStorageKey,
   buildFirmReviewPrompt,
+  generatedDeckSchema,
+  generatedDeckToReviewText,
+  generateMockDeck,
   extractDeckText,
+  evaluateDeckAiAccess,
   firmReviewSchema,
   listPublicInvestmentFirms,
+  parseGeneratedDeckModelOutput,
   parseFirmReviewModelOutput,
   resolveSelectedFirms,
+  startupProfileSchema,
   storeDeckPdf,
   validatePdfUpload,
+  validateManualPitchText,
   type FirmReview,
 } from "@/lib/deck-review";
 import { getDeckReviewRuntimeConfig } from "@/lib/deck-review/config";
@@ -99,6 +106,55 @@ describe("AI investment firm deck review foundation", () => {
     expect(config.provider).toBe("deepseek");
     expect(config.model).toBe("deepseek-reasoner");
     expect(config.apiKey).toBe("server-only-key");
+  });
+
+  it("validates Phase 25B input modes, startup profile, and generated deck schema", () => {
+    expect(validateManualPitchText("short")).toMatchObject({ ok: false });
+    expect(validateManualPitchText("Manual pitch ".repeat(40))).toMatchObject({ ok: true });
+
+    const profile = startupProfileSchema.parse({
+      companyName: "MercuryOps",
+      city: "New York",
+      country: "US",
+      websiteUrl: "https://example.com",
+      sector: "AI SaaS",
+      targetCustomer: "finance operators",
+      currentStage: "seed",
+      realLifeStartup: true,
+    });
+    expect(profile.companyName).toBe("MercuryOps");
+
+    const deck = generateMockDeck({
+      startup: {
+        name: "MercuryOps",
+        sector: "AI SaaS",
+        stage: "seed",
+        targetMarket: "finance teams",
+      },
+      startupProfile: profile,
+      requestText: "Build an investor deck for a finance operations AI command layer.",
+    });
+    expect(generatedDeckSchema.safeParse(deck).success).toBe(true);
+    expect(generatedDeckToReviewText(deck)).toContain("One-line pitch");
+    expect(parseGeneratedDeckModelOutput(JSON.stringify(deck))).toMatchObject({ ok: true });
+  });
+
+  it("evaluates premium or rewarded-credit access for expensive AI actions", () => {
+    expect(evaluateDeckAiAccess({ planId: "pro", availableCredits: 0 })).toMatchObject({
+      allowed: true,
+      isPremium: true,
+      willUseCredit: false,
+    });
+    expect(evaluateDeckAiAccess({ planId: "free", availableCredits: 1 })).toMatchObject({
+      allowed: true,
+      isPremium: false,
+      willUseCredit: true,
+    });
+    expect(evaluateDeckAiAccess({ planId: "free", availableCredits: 0 })).toMatchObject({
+      allowed: false,
+      upgradeRequired: true,
+      requiredAction: "premium_or_reward_credit",
+    });
   });
 
   it("auto-selects sector-relevant firms and rejects unknown explicit IDs", () => {
@@ -263,6 +319,7 @@ describe("AI investment firm deck review foundation", () => {
       id: "job-1",
       userId: "user-1",
       startupId: "startup-1",
+      reviewInputType: "pdf_upload",
       status: "completed",
       deckStorageKey: "2026-06-11/private.pdf",
       deckSha256: "secret-deck-hash",
@@ -273,6 +330,21 @@ describe("AI investment firm deck review foundation", () => {
       extractedTextSha256: "secret-text-hash",
       extractedTextTruncated: false,
       manualNotes: "PRIVATE FOUNDER NOTES",
+      startupProfile: {
+        companyName: "PRIVATE COMPANY",
+        logoUploadKey: "2026-06-11/private-logo.png",
+      },
+      generatedDeck: {
+        deckTitle: "PRIVATE GENERATED DECK",
+        oneLinePitch: "PRIVATE PITCH",
+        slides: [],
+        generatedWarnings: [],
+        missingInfo: [],
+        qualityScore: 50,
+      },
+      sourceSummary: "PDF deck · 1000 extracted chars",
+      accessConsumedAt: new Date("2026-06-11T00:00:30.000Z"),
+      accessUsedCredit: true,
       selectedFirmIds: ["marketproof_partners"],
       provider: "mock",
       model: "mock",
@@ -284,7 +356,7 @@ describe("AI investment firm deck review foundation", () => {
       completedAt: new Date("2026-06-11T00:01:00.000Z"),
       createdAt: new Date("2026-06-11T00:00:00.000Z"),
       updatedAt: new Date("2026-06-11T00:01:00.000Z"),
-    } as Parameters<typeof buildSafeDeckReviewJobView>[0]);
+    } as unknown as Parameters<typeof buildSafeDeckReviewJobView>[0]);
 
     const serialized = JSON.stringify(safe);
     expect(serialized).toContain("founder-deck.pdf");
@@ -293,6 +365,9 @@ describe("AI investment firm deck review foundation", () => {
     expect(serialized).not.toContain("private.pdf");
     expect(serialized).not.toContain("secret-deck-hash");
     expect(serialized).not.toContain("secret-text-hash");
+    expect(serialized).not.toContain("PRIVATE COMPANY");
+    expect(serialized).not.toContain("private-logo");
+    expect(serialized).not.toContain("PRIVATE GENERATED DECK");
     expect(serialized.toLowerCase()).not.toContain("prompt");
   });
 });

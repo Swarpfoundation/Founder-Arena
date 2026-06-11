@@ -1,6 +1,6 @@
 # Founder Arena PDF Deck Review Market
 
-Phase 25A adds a backend-driven AI review market for real uploaded PDF pitch decks. The reviewers are fictional in-game investment firms. They provide gameplay feedback only; they are not real investors, do not create real funding offers, and do not perform outreach.
+Phase 25A adds a backend-driven AI review market for real uploaded PDF pitch decks. Phase 25B extends the same market to manual pitch text and AI-generated structured decks; see `docs/ai-review/pitch-intake-ai-deck-generation.md` for the broader intake/access-gate contract. The reviewers are fictional in-game investment firms. They provide gameplay feedback only; they are not real investors, do not create real funding offers, and do not perform outreach.
 
 ## Architecture
 

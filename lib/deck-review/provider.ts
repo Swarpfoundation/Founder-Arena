@@ -24,12 +24,12 @@ export class DeckReviewProviderError extends Error {
   }
 }
 
-interface ChatMessage {
+export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
-async function callDeepSeekChat(
+export async function callDeckReviewChat(
   messages: ChatMessage[],
   config: DeckReviewRuntimeConfig
 ): Promise<{ content: string; usage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number } }> {
@@ -127,13 +127,13 @@ export async function generateFirmReview(
     if (attempt > 0) await sleep(backoffMs(attempt - 1));
 
     try {
-      const first = await callDeepSeekChat(baseMessages, config);
+      const first = await callDeckReviewChat(baseMessages, config);
       let parsed = parseFirmReviewModelOutput(first.content);
       let repaired = false;
 
       if (!parsed.ok) {
         // One repair round-trip: send the invalid output back with the error.
-        const repair = await callDeepSeekChat(
+        const repair = await callDeckReviewChat(
           [
             ...baseMessages,
             { role: "assistant", content: first.content.slice(0, 6_000) },

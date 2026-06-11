@@ -1,6 +1,6 @@
 # Founder Arena iOS Deck Review API Contract
 
-Phase 25A.1 freezes the backend contract that the native iOS app should use for
+Phase 25B extends the backend contract that the native iOS app should use for
 AI investment firm deck review. The firms are fictional game entities. Results
 are gameplay feedback, not real investment offers, financial advice, investor
 outreach, CRM activity, or legal commitments.
@@ -56,7 +56,7 @@ Response:
 
 ### `POST /api/vc-review-jobs`
 
-Creates a private deck review job and starts extraction/review.
+Creates a private review job from one of three input modes and starts firm review.
 
 Request:
 
@@ -64,9 +64,14 @@ Request:
 - Content type: `multipart/form-data`
 - Fields:
   - `startupId`: required string.
-  - `deck`: required PDF file.
+  - `inputType`: `pdf_upload`, `manual_pitch`, or `ai_generated_deck`.
+  - `deck`: required for `pdf_upload`.
+  - `pitchText`: required for `manual_pitch`.
+  - `generatedDeckJobId`: required for `ai_generated_deck`.
   - `manualNotes`: optional string, max 2,000 characters after trimming.
   - `firmIds`: optional comma-separated firm IDs. Omit for auto-selection.
+  - `startupProfile` JSON object or `profile.<field>` multipart fields.
+  - `logo`: optional private PNG/JPEG/WebP logo file.
 
 Upload limits:
 
@@ -76,6 +81,8 @@ Upload limits:
 - Max extracted text: 60,000 characters.
 - Minimum readable text: 200 characters.
 - OCR is not supported. Scanned or image-only PDFs fail safely.
+- Manual pitch text: minimum 300 characters, max 30,000 characters.
+- Startup logo: max 2 MB; stored privately.
 
 Response:
 
@@ -90,10 +97,13 @@ Accepted response shape:
   "job": {
     "jobId": "clx_job_id",
     "startupId": "clx_startup_id",
+    "reviewInputType": "pdf_upload",
     "status": "reviewing",
     "selectedFirmIds": ["marketproof_partners", "novaedge_ai_ventures"],
     "deckFileName": "pitch.pdf",
     "deckPageCount": 1,
+    "sourceSummary": "PDF deck · 12000 extracted chars",
+    "accessUsedCredit": false,
     "provider": null,
     "model": null,
     "errorCategory": null,
@@ -118,10 +128,13 @@ Completed response shape:
   "job": {
     "jobId": "clx_job_id",
     "startupId": "clx_startup_id",
+    "reviewInputType": "ai_generated_deck",
     "status": "completed",
     "selectedFirmIds": ["marketproof_partners", "novaedge_ai_ventures"],
     "deckFileName": "pitch.pdf",
     "deckPageCount": 1,
+    "sourceSummary": "MercuryOps Investor Deck · 12 generated slides",
+    "accessUsedCredit": true,
     "provider": "deepseek",
     "model": "deepseek-reasoner",
     "errorCategory": null,
@@ -186,6 +199,61 @@ Manual runner for local development and admin recovery.
 - Production: configured admin only.
 - iOS should not call this endpoint in normal gameplay.
 
+### `POST /api/deck-generation-jobs`
+
+Generates a structured professional deck JSON from startup profile and founder
+request text. Owner only.
+
+Request:
+
+- Method: `POST`
+- Content type: `multipart/form-data`
+- Fields:
+  - `startupId`: required.
+  - `requestText`: required, minimum 80 characters, max 4,000 characters.
+  - startup profile fields.
+  - optional private `logo`.
+
+Response includes a safe owner-only `generatedDeck`:
+
+```json
+{
+  "job": {
+    "jobId": "clx_generation_job",
+    "startupId": "clx_startup_id",
+    "status": "completed",
+    "provider": "mock",
+    "model": "mock",
+    "errorCategory": null,
+    "safeErrorMessage": null,
+    "accessUsedCredit": false,
+    "createdAt": "2026-06-11T19:00:00.000Z",
+    "startedAt": "2026-06-11T19:00:00.000Z",
+    "completedAt": "2026-06-11T19:00:02.000Z",
+    "generatedDeck": {
+      "deckTitle": "MercuryOps Investor Deck",
+      "oneLinePitch": "MercuryOps helps finance operators reconcile board metrics.",
+      "slides": [
+        {
+          "slideNumber": 1,
+          "title": "Title / One-line pitch",
+          "headline": "MercuryOps helps finance operators reconcile board metrics.",
+          "bullets": ["Focused customer pain", "AI workflow wedge"],
+          "speakerNote": "Open with the clearest customer pain."
+        }
+      ],
+      "generatedWarnings": ["Replace assumptions with evidence before investor review."],
+      "missingInfo": ["Retention evidence"],
+      "qualityScore": 70
+    }
+  }
+}
+```
+
+### `GET /api/deck-generation-jobs/:jobId`
+
+Returns the safe generated deck job. Owner/admin only.
+
 ## Job Statuses
 
 - `uploaded`: row created and private file stored.
@@ -194,6 +262,7 @@ Manual runner for local development and admin recovery.
 - `completed`: validated firm reviews and aggregate review are available.
 - `failed`: safe error is available through `errorCategory` and
   `safeErrorMessage`.
+- Deck generation jobs use `generating`, `completed`, and `failed`.
 
 The `POST /api/vc-review-jobs` response may skip short-lived intermediate
 states when extraction completes quickly. iOS should treat statuses as a state
@@ -206,6 +275,9 @@ Possible job-level `errorCategory` values include:
 - `deck_unreadable`
 - `deck_too_large`
 - `extraction_failed`
+- `invalid_pitch`
+- `invalid_profile`
+- `access_required`
 - `provider_not_configured`
 - `provider_timeout`
 - `provider_rate_limited`
@@ -220,10 +292,13 @@ Sample scanned/image-only failure:
   "job": {
     "jobId": "clx_job_id",
     "startupId": "clx_startup_id",
+    "reviewInputType": "pdf_upload",
     "status": "failed",
     "selectedFirmIds": ["marketproof_partners"],
     "deckFileName": "scanned-deck.pdf",
     "deckPageCount": null,
+    "sourceSummary": null,
+    "accessUsedCredit": false,
     "provider": null,
     "model": null,
     "errorCategory": "extraction_failed",
@@ -249,6 +324,11 @@ No iOS or frontend API response may include:
 - `extractedText`
 - `extractedTextSha256`
 - `manualNotes`
+- `startupProfile`
+- `logoUploadKey`
+- private logo paths
+- raw manual pitch text
+- raw generated deck JSON on review jobs
 - raw prompts
 - raw provider payloads
 - API keys
@@ -267,18 +347,41 @@ Recommended iOS behavior:
    state.
 6. Do not cache private deck files on-device longer than the upload session.
 
+For AI deck mode, first call `POST /api/deck-generation-jobs`, preview the
+returned generated deck, then submit `generatedDeckJobId` to
+`POST /api/vc-review-jobs`.
+
+## Access Required Contract
+
+AI deck generation and investment firm review are server-gated. If the user is
+not Pro/Max, admin, dev-bypassed, or holding a rewarded/referral credit, the
+server returns `402`:
+
+```json
+{
+  "error": "AI deck generation and investment firm review require Pro/Max or one rewarded/referral review credit.",
+  "errorCategory": "access_required",
+  "upgradeRequired": true,
+  "rewardedCreditAvailable": false,
+  "requiredAction": "premium_or_reward_credit",
+  "availableCredits": 0,
+  "planId": "free"
+}
+```
+
 ## iOS UI Flow Recommendation
 
 1. Fetch `GET /api/vc-review-firms`.
 2. Let the player choose auto-select or specific fictional firms.
-3. Pick a PDF using the iOS document picker.
-4. Upload with `POST /api/vc-review-jobs`.
-5. Show status: uploading, extracting deck, reviewing, completed/failed.
-6. Poll `GET /api/vc-review-jobs/:jobId`.
-7. Show aggregate verdict first.
-8. Show firm review cards with score, decision, reasons, concerns, questions,
+3. Collect startup profile fields.
+4. Pick PDF, write manual pitch, or generate deck.
+5. Upload with `POST /api/vc-review-jobs`.
+6. Show status: uploading, extracting deck, reviewing, completed/failed.
+7. Poll `GET /api/vc-review-jobs/:jobId`.
+8. Show aggregate verdict first.
+9. Show firm review cards with score, decision, reasons, concerns, questions,
    required milestones, and missing information.
-9. Use copy that makes clear these are fictional in-game firms and not real
+10. Use copy that makes clear these are fictional in-game firms and not real
    funding decisions.
 
 ## Privacy and Security Rules
@@ -286,6 +389,7 @@ Recommended iOS behavior:
 - The DeepSeek key remains server-side only.
 - iOS must never receive or store model provider secrets.
 - Uploaded PDFs are private backend files, not public URLs.
+- Uploaded logos are private backend files, not public URLs.
 - Deck text is private backend data and should never be displayed unless a
   future product decision explicitly adds a redacted preview.
 - Public share pages must not include deck text, prompts, raw model output,

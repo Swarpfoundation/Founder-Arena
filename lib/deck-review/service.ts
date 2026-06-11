@@ -11,10 +11,13 @@ import { generateFirmReview, generateMockFirmReview, DeckReviewProviderError } f
 import {
   aggregateReviewSchema,
   firmReviewSchema,
+  startupProfileSchema,
   type AggregateReview,
   type DeckReviewErrorCategory,
   type DeckReviewJobStatus,
   type FirmReview,
+  type ReviewInputType,
+  type StartupProfile,
 } from "./schemas";
 
 /**
@@ -36,10 +39,13 @@ export type SafeFirmReviewView = FirmReview;
 export interface SafeDeckReviewJobView {
   jobId: string;
   startupId: string;
+  reviewInputType: ReviewInputType;
   status: DeckReviewJobStatus;
   selectedFirmIds: string[];
-  deckFileName: string;
+  deckFileName: string | null;
   deckPageCount: number | null;
+  sourceSummary: string | null;
+  accessUsedCredit: boolean;
   provider: string | null;
   model: string | null;
   errorCategory: string | null;
@@ -64,6 +70,17 @@ function parseStatus(value: string): DeckReviewJobStatus {
   }
 }
 
+function parseInputType(value: string): ReviewInputType {
+  switch (value) {
+    case "manual_pitch":
+    case "ai_generated_deck":
+    case "pdf_upload":
+      return value;
+    default:
+      return "pdf_upload";
+  }
+}
+
 function parseStoredFirmReviews(value: Prisma.JsonValue | null): FirmReview[] | null {
   if (!Array.isArray(value)) return null;
   const reviews: FirmReview[] = [];
@@ -80,6 +97,12 @@ function parseStoredAggregate(value: Prisma.JsonValue | null): AggregateReview |
   return parsed.success ? parsed.data : null;
 }
 
+function parseStoredStartupProfile(value: Prisma.JsonValue | null): StartupProfile | null {
+  if (!value || typeof value !== "object") return null;
+  const parsed = startupProfileSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
 /**
  * The ONLY shape the API may return. Deliberately rebuilt field-by-field so
  * private columns (extractedText, deckStorageKey, manualNotes, hashes) can
@@ -92,10 +115,13 @@ export function buildSafeDeckReviewJobView(job: DeckReviewJobRecord): SafeDeckRe
   return {
     jobId: job.id,
     startupId: job.startupId,
+    reviewInputType: parseInputType(job.reviewInputType),
     status,
     selectedFirmIds: Array.isArray(job.selectedFirmIds) ? (job.selectedFirmIds as string[]) : [],
     deckFileName: job.deckFileName,
     deckPageCount: job.deckPageCount,
+    sourceSummary: job.sourceSummary,
+    accessUsedCredit: job.accessUsedCredit,
     provider: job.provider,
     model: job.model,
     errorCategory: job.errorCategory,
@@ -144,6 +170,7 @@ type DeckReviewAuditEvent =
   | "deck_review_pdf_validated"
   | "deck_review_extraction_completed"
   | "deck_review_extraction_failed"
+  | "deck_review_access_consumed"
   | "deck_review_started"
   | "deck_review_completed"
   | "deck_review_failed";
@@ -254,7 +281,9 @@ export async function runDeckReviewJob(jobId: string, configOverride?: DeckRevie
           {
             firm,
             deckText: job.extractedText,
+            reviewInputType: parseInputType(job.reviewInputType),
             manualNotes: job.manualNotes,
+            startupProfile: parseStoredStartupProfile(job.startupProfile),
             startup: {
               name: job.startup.name,
               sector: job.startup.sector,
