@@ -40,3 +40,6 @@ prisma/*.db-journal
 *.png
 !public/logo.png
 !app/icon.png
+
+# Private deck uploads (AI investment firm review) — never commit
+/private-uploads/

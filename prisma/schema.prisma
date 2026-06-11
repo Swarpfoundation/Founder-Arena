@@ -50,6 +50,7 @@ model User {
   creditWallet  CreditWallet?
   usageLedger   UsageLedger[]
   queuedActions QueuedAction[]
+  deckReviewJobs VcDeckReviewJob[]
 
   @@map("users")
 }
@@ -144,6 +145,7 @@ model Startup {
   leaderboardEntries LeaderboardEntry[]
   growthOffers       GrowthOffer[]
   missions           Mission[]
+  deckReviewJobs     VcDeckReviewJob[]
 
   socialState        SocialState?
 
@@ -628,4 +630,40 @@ model FounderAchievement {
   @@unique([founderProfileId, key])
   @@index([founderProfileId])
   @@map("founder_achievements")
+}
+
+model VcDeckReviewJob {
+  id                     String    @id @default(cuid())
+  userId                 String
+  startupId              String
+  status                 String    @default("uploaded")
+  deckStorageKey         String
+  deckSha256             String
+  deckFileName           String
+  deckSizeBytes          Int
+  deckPageCount          Int?
+  extractedText          String?   @db.Text
+  extractedTextSha256    String?
+  extractedTextTruncated Boolean   @default(false)
+  manualNotes            String?   @db.Text
+  selectedFirmIds        Json
+  provider               String?
+  model                  String?
+  firmReviews            Json?
+  aggregateReview        Json?
+  errorCategory          String?
+  safeErrorMessage       String?
+  startedAt              DateTime?
+  completedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startup Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([startupId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("vc_deck_review_jobs")
 }

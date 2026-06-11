@@ -20,6 +20,7 @@ const PUBLIC_PATHS = new Set([
   "/api/health",            // Deployment health check
   "/api/webhooks/stripe",   // Stripe webhook — signature verified inside handler
   "/api/market/snapshot",   // Read-only market data consumed by the public /market page
+  "/api/vc-review-firms",   // Fictional firm catalog only; no user/deck data
   // Share page roots (sub-paths handled by PUBLIC_PREFIXES)
   "/s",
   "/f",

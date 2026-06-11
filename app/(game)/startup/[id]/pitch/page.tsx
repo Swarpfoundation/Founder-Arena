@@ -15,6 +15,7 @@ import { pitchDeckSchema } from "@/lib/validations";
 import { generatePitchDraft, PITCH_QUALITY_HINTS } from "@/lib/onboarding/pitch-draft";
 import { GameScene } from "@/components/game/GameScene";
 import { GameHudBar } from "@/components/game/GameHudBar";
+import { DeckReviewMarket } from "@/components/game/DeckReviewMarket";
 import { RewardedReviewAccelerator } from "@/components/game/RewardedReviewAccelerator";
 import {
   DossierReadinessMeter,
@@ -321,6 +322,8 @@ export default function PitchBuilderPage({ params }: { params: Promise<{ id: str
           </button>
         </div>
       </form>
+
+      <DeckReviewMarket startupId={startupId} />
     </GameScene>
   );
 }
