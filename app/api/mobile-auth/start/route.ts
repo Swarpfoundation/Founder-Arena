@@ -11,6 +11,10 @@ export const dynamic = "force-dynamic";
 
 const PKCE_CHALLENGE_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
 
+function getPublicBackendOrigin(request: NextRequest): string {
+  return process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? request.nextUrl.origin;
+}
+
 export async function GET(request: NextRequest) {
   if (!isMobileAuthEnabled()) {
     return NextResponse.json({ error: "Mobile auth is disabled." }, { status: 403 });
@@ -46,7 +50,7 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.redirect(buildMobileAuthLoginUrl({
-    origin: request.nextUrl.origin,
+    origin: getPublicBackendOrigin(request),
     provider,
     attemptId: attempt.id,
     state,
