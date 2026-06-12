@@ -1,45 +1,12 @@
 import { describe, it, expect } from "vitest";
+import { hasBearerAuthorizationHeader, isPublicPath } from "@/lib/middleware-routes";
 
 /**
  * Route boundary tests for middleware allowlist.
  *
- * These mirror the isPublicPath logic so that any change to PUBLIC_PATHS or
+ * These exercise the real isPublicPath logic so that any change to PUBLIC_PATHS or
  * PUBLIC_PREFIXES is caught by tests before deployment.
  */
-
-// Replicate the middleware classification logic (source of truth: middleware.ts)
-const PUBLIC_PATHS = new Set([
-  "/",
-  "/login",
-  "/register",
-  "/pricing",
-  "/market",
-  "/leaderboard",
-  "/graveyard",
-  "/how-to-play",
-  "/demo",
-  "/api/health",
-  "/api/webhooks/stripe",
-  "/api/market/snapshot",
-  "/s",
-  "/f",
-]);
-
-const PUBLIC_PREFIXES = [
-  "/s/",
-  "/f/",
-  "/api/auth/",
-  "/api/cron/",   // Vercel Cron: unauthenticated GET; each handler verifies CRON_SECRET
-  "/r/",
-];
-
-function isPublicPath(pathname: string): boolean {
-  if (PUBLIC_PATHS.has(pathname)) return true;
-  for (const prefix of PUBLIC_PREFIXES) {
-    if (pathname.startsWith(prefix)) return true;
-  }
-  return false;
-}
 
 describe("middleware PUBLIC_PATHS exact matches", () => {
   it("allows root /", () => expect(isPublicPath("/")).toBe(true));
@@ -74,6 +41,12 @@ describe("middleware PUBLIC_PREFIXES", () => {
     expect(isPublicPath("/api/cron/market-snapshot")).toBe(true);
     expect(isPublicPath("/api/cron/generate-market-snapshot")).toBe(true);
   });
+  it("allows /api/mobile-auth/* so native auth reaches route handlers", () => {
+    expect(isPublicPath("/api/mobile-auth/start")).toBe(true);
+    expect(isPublicPath("/api/mobile-auth/callback")).toBe(true);
+    expect(isPublicPath("/api/mobile-auth/exchange")).toBe(true);
+    expect(isPublicPath("/api/mobile-auth/me")).toBe(true);
+  });
   it("allows /r/<code> referral capture links", () => {
     expect(isPublicPath("/r/ABC123")).toBe(true);
   });
@@ -88,8 +61,23 @@ describe("middleware protected routes (session required)", () => {
   it("blocks /api/billing/portal", () => {
     expect(isPublicPath("/api/billing/portal")).toBe(false);
   });
+  it("blocks protected startup and review APIs unless route auth succeeds", () => {
+    expect(isPublicPath("/api/startups")).toBe(false);
+    expect(isPublicPath("/api/vc-review-jobs")).toBe(false);
+    expect(isPublicPath("/api/deck-generation-jobs")).toBe(false);
+  });
   it("blocks /api/health/extra (only exact /api/health is allowed)", () => {
     expect(isPublicPath("/api/health/extra")).toBe(false);
+  });
+});
+
+describe("middleware bearer API bypass", () => {
+  it("recognizes bearer auth headers for route-handler validation", () => {
+    expect(hasBearerAuthorizationHeader("Bearer token")).toBe(true);
+    expect(hasBearerAuthorizationHeader("Bearer abc.def")).toBe(true);
+    expect(hasBearerAuthorizationHeader("bearer token")).toBe(false);
+    expect(hasBearerAuthorizationHeader("Bearer")).toBe(false);
+    expect(hasBearerAuthorizationHeader(null)).toBe(false);
   });
 });
 

@@ -1,49 +1,9 @@
 import NextAuth from "next-auth";
 import { authConfig } from "@/auth.config";
 import { NextResponse } from "next/server";
+import { hasBearerAuthorizationHeader, isApiPath, isPublicPath } from "@/lib/middleware-routes";
 
 const { auth } = NextAuth(authConfig);
-
-// Exact-match paths that require no authentication.
-// Add new public API routes here explicitly — never add a broad /api/ prefix.
-const PUBLIC_PATHS = new Set([
-  "/",
-  "/login",
-  "/register",
-  "/pricing",
-  "/market",
-  "/leaderboard",
-  "/graveyard",
-  "/how-to-play",
-  "/demo",
-  // Public API routes (each must be justified individually)
-  "/api/health",            // Deployment health check
-  "/api/webhooks/stripe",   // Stripe webhook — signature verified inside handler
-  "/api/market/snapshot",   // Read-only market data consumed by the public /market page
-  "/api/vc-review-firms",   // Fictional firm catalog only; no user/deck data
-  // Share page roots (sub-paths handled by PUBLIC_PREFIXES)
-  "/s",
-  "/f",
-]);
-
-// Prefix-match paths where ALL sub-routes must be public.
-// Keep this list narrow.
-const PUBLIC_PREFIXES = [
-  "/s/",        // Public startup share pages  /s/[slug]
-  "/f/",        // Public founder share pages  /f/[slug]
-  "/api/auth/", // Auth.js: sign-in, callback, signout, session, csrf
-  "/api/cron/", // Cron endpoints: Vercel Cron runs unauthenticated; each handler
-                // enforces CRON_SECRET (≥16 chars) before doing any work.
-  "/r/",         // Referral capture links set a short-lived attribution cookie.
-];
-
-function isPublicPath(pathname: string): boolean {
-  if (PUBLIC_PATHS.has(pathname)) return true;
-  for (const prefix of PUBLIC_PREFIXES) {
-    if (pathname.startsWith(prefix)) return true;
-  }
-  return false;
-}
 
 export default auth((req) => {
   const { nextUrl } = req;
@@ -62,8 +22,17 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
+  // Native/mobile API clients authenticate inside route handlers with
+  // Authorization: Bearer. Let handlers validate tokens and return JSON.
+  if (isApiPath(nextUrl.pathname) && hasBearerAuthorizationHeader(req.headers.get("authorization"))) {
+    return NextResponse.next();
+  }
+
   // Protected route: require auth
   if (!isLoggedIn) {
+    if (isApiPath(nextUrl.pathname)) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
     const loginUrl = new URL("/login", nextUrl.origin);
     loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);
     return NextResponse.redirect(loginUrl);

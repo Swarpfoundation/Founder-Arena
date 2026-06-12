@@ -133,8 +133,22 @@ The AI deck review routes accept either:
 - browser Auth.js session cookies, or
 - `Authorization: Bearer <mobile-token>`.
 
+Middleware behavior:
+
+- `/api/mobile-auth/*` is allowed through middleware so route handlers can
+  validate auth attempts, codes, and bearer tokens.
+- Protected `/api/*` requests with `Authorization: Bearer <token>` are allowed
+  through middleware so route handlers can validate the token and enforce owner
+  checks.
+- Protected API requests without browser session or bearer token return JSON
+  `401` instead of being redirected to `/login`.
+- Browser pages keep the existing `/login` redirect behavior.
+
 This applies to:
 
+- `GET /api/startups`
+- `POST /api/startups`
+- `GET /api/startups/:startupId`
 - `POST /api/deck-generation-jobs`
 - `GET /api/deck-generation-jobs/:jobId`
 - `POST /api/vc-review-jobs`
@@ -146,6 +160,56 @@ Public routes remain public:
 
 - `GET /api/health`
 - `GET /api/vc-review-firms`
+
+## Startup API for iOS
+
+The VC review endpoints require a backend `startupId`. Native clients should
+create or reuse a backend startup before submitting a deck review.
+
+### `GET /api/startups`
+
+Bearer token or browser session required. Returns only the current user's
+startups with safe fields:
+
+```json
+{
+  "startups": [
+    {
+      "id": "clx_startup_id",
+      "name": "VaultPay",
+      "sector": "Fintech",
+      "region": "Europe",
+      "founderStyle": null,
+      "currentMonth": 0,
+      "status": "draft",
+      "fundingStage": "idea",
+      "cash": 0,
+      "monthlyBurn": 0,
+      "valuation": 0,
+      "createdAt": "2026-06-12T10:00:00.000Z",
+      "updatedAt": "2026-06-12T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+### `POST /api/startups`
+
+Bearer token or browser session required.
+
+```json
+{
+  "name": "VaultPay",
+  "sector": "FinTech",
+  "country": "UK",
+  "founderStyle": "Technical",
+  "targetCustomer": "marketplace operators"
+}
+```
+
+The route creates a normal backend draft startup and returns the same safe
+startup shape. It does not expose difficulty, raw AI analysis, private review
+data, or owner identifiers.
 
 ## Render Environment Variables
 

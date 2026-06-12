@@ -40,7 +40,112 @@ founderarena://auth-callback?code=<one-time-code>&state=<state>
 See `docs/auth/mobile-auth-token-exchange.md` for the complete endpoint
 contract and security invariants.
 
+Backend middleware intentionally lets `/api/mobile-auth/*` reach route handlers.
+Protected API requests with `Authorization: Bearer <token>` also reach route
+handlers, where the token is validated and owner authorization is enforced.
+Invalid or missing API auth returns JSON `401`; native clients should not expect
+an HTML `/login` redirect for API calls.
+
 ## Endpoints
+
+### `GET /api/startups`
+
+Lists the current user's backend startups. Requires browser session or mobile
+bearer token.
+
+Response:
+
+```json
+{
+  "startups": [
+    {
+      "id": "clx_startup_id",
+      "name": "VaultPay",
+      "sector": "Fintech",
+      "region": "Europe",
+      "founderStyle": null,
+      "currentMonth": 0,
+      "status": "draft",
+      "fundingStage": "idea",
+      "cash": 0,
+      "monthlyBurn": 0,
+      "valuation": 0,
+      "createdAt": "2026-06-12T10:00:00.000Z",
+      "updatedAt": "2026-06-12T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+Safe response notes:
+
+- Only the authenticated user's startups are returned.
+- No difficulty field is returned.
+- No raw pitch/problem/solution, private AI analysis, deck review payloads, or
+  owner identifiers are returned.
+
+### `POST /api/startups`
+
+Creates a normal backend startup owned by the authenticated user so iOS has a
+`startupId` for deck generation and VC review jobs.
+
+Request:
+
+```json
+{
+  "name": "VaultPay",
+  "sector": "FinTech",
+  "country": "UK",
+  "founderStyle": "Technical",
+  "targetCustomer": "marketplace operators",
+  "description": "Optional short company description",
+  "problem": "Optional investor-readable problem statement, at least 20 chars.",
+  "solution": "Optional investor-readable solution statement, at least 20 chars.",
+  "monetizationModel": "Optional business model",
+  "unfairAdvantage": "Optional founder background",
+  "fundingAsk": 500000
+}
+```
+
+The backend maps mobile-friendly sectors and country/region values into the
+existing startup model. Unknown sectors use the safe `Other` fallback.
+
+Response:
+
+```json
+{
+  "startup": {
+    "id": "clx_startup_id",
+    "name": "VaultPay",
+    "sector": "Fintech",
+    "region": "Europe",
+    "founderStyle": null,
+    "currentMonth": 0,
+    "status": "draft",
+    "fundingStage": "idea",
+    "cash": 0,
+    "monthlyBurn": 0,
+    "valuation": 0,
+    "createdAt": "2026-06-12T10:00:00.000Z",
+    "updatedAt": "2026-06-12T10:00:00.000Z"
+  }
+}
+```
+
+### `GET /api/startups/:startupId`
+
+Returns one safe startup view for the owner or configured admin. Non-owners get
+`404`.
+
+### Recommended iOS Startup Flow
+
+1. Login through mobile auth.
+2. Call `GET /api/mobile-auth/me`.
+3. Call `GET /api/startups`.
+4. If no backend startup exists for the current local run, call
+   `POST /api/startups`.
+5. Use the returned backend `startup.id` as `startupId` when creating
+   deck-generation and VC review jobs.
 
 ### `GET /api/vc-review-firms`
 
