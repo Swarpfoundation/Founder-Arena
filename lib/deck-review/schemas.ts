@@ -238,6 +238,12 @@ const missionSafetyBlockedPhrases = [
   "investors will invest",
 ];
 
+const optionalMissionText = (max = 180) =>
+  z.preprocess(
+    (value) => (value === null || (typeof value === "string" && value.trim().length === 0) ? undefined : value),
+    z.string().trim().min(1).max(max).optional()
+  );
+
 const compliancePlanningLanguage = [
   "clarify",
   "map",
@@ -253,9 +259,9 @@ const compliancePlanningLanguage = [
 ];
 
 const investorMissionBaseSchema = z.object({
-  id: z.string().trim().min(1).max(80).optional(),
+  id: optionalMissionText(80),
   source: z.enum(INVESTOR_MISSION_SOURCES).default("ai_roadmap"),
-  firmId: z.string().trim().min(1).max(120).optional(),
+  firmId: optionalMissionText(120),
   category: z.enum(INVESTOR_MISSION_CATEGORIES),
   title: z.string().trim().min(4).max(140),
   summary: z.string().trim().min(12).max(700),
@@ -265,7 +271,7 @@ const investorMissionBaseSchema = z.object({
   priority: z.enum(INVESTOR_MISSION_PRIORITIES),
   status: z.enum(INVESTOR_MISSION_STATUSES).default("proposed"),
   phaseSuggestion: z.enum(INVESTOR_MISSION_PHASES),
-  riskArea: z.string().trim().max(180).optional(),
+  riskArea: optionalMissionText(180),
 });
 
 export const investorMissionSchema = investorMissionBaseSchema.superRefine((mission, ctx) => {
