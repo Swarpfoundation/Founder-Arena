@@ -8,9 +8,16 @@ import { getDeckReviewRuntimeConfig, type DeckReviewRuntimeConfig } from "./conf
 import { getInvestmentFirmById, type InvestmentFirm } from "./firms";
 import { aggregateFirmReviews } from "./aggregate";
 import { generateFirmReview, generateMockFirmReview, DeckReviewProviderError } from "./provider";
+import { generateInvestorMissions } from "./missions";
 import {
   aggregateReviewSchema,
   firmReviewSchema,
+  generatedDeckSchema,
+  investorMissionRoadmapSummarySchema,
+  investorMissionSchema,
+  type InvestorMission,
+  type InvestorMissionRoadmapSummary,
+  type MissionGenerationStatus,
   startupProfileSchema,
   type AggregateReview,
   type DeckReviewErrorCategory,
@@ -50,6 +57,12 @@ export interface SafeDeckReviewJobView {
   model: string | null;
   errorCategory: string | null;
   safeErrorMessage: string | null;
+  missionGenerationStatus: MissionGenerationStatus;
+  missionCount: number;
+  missionGenerationErrorCategory: string | null;
+  missionGenerationSafeErrorMessage: string | null;
+  missions: InvestorMission[] | null;
+  roadmapSummary: InvestorMissionRoadmapSummary | null;
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
@@ -81,6 +94,18 @@ function parseInputType(value: string): ReviewInputType {
   }
 }
 
+function parseMissionGenerationStatus(value: string): MissionGenerationStatus {
+  switch (value) {
+    case "generating":
+    case "completed":
+    case "failed":
+    case "not_started":
+      return value;
+    default:
+      return "failed";
+  }
+}
+
 function parseStoredFirmReviews(value: Prisma.JsonValue | null): FirmReview[] | null {
   if (!Array.isArray(value)) return null;
   const reviews: FirmReview[] = [];
@@ -103,6 +128,28 @@ function parseStoredStartupProfile(value: Prisma.JsonValue | null): StartupProfi
   return parsed.success ? parsed.data : null;
 }
 
+function parseStoredGeneratedDeck(value: Prisma.JsonValue | null) {
+  if (!value || typeof value !== "object") return null;
+  const parsed = generatedDeckSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+function parseStoredInvestorMissions(value: Prisma.JsonValue | null): InvestorMission[] | null {
+  if (!Array.isArray(value)) return null;
+  const missions: InvestorMission[] = [];
+  for (const item of value) {
+    const parsed = investorMissionSchema.safeParse(item);
+    if (parsed.success) missions.push(parsed.data);
+  }
+  return missions.length > 0 ? missions : null;
+}
+
+function parseStoredRoadmapSummary(value: Prisma.JsonValue | null): InvestorMissionRoadmapSummary | null {
+  if (!value || typeof value !== "object") return null;
+  const parsed = investorMissionRoadmapSummarySchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
 /**
  * The ONLY shape the API may return. Deliberately rebuilt field-by-field so
  * private columns (extractedText, deckStorageKey, manualNotes, hashes) can
@@ -111,6 +158,10 @@ function parseStoredStartupProfile(value: Prisma.JsonValue | null): StartupProfi
 export function buildSafeDeckReviewJobView(job: DeckReviewJobRecord): SafeDeckReviewJobView {
   const status = parseStatus(job.status);
   const completed = status === "completed";
+  const missionGenerationStatus = parseMissionGenerationStatus(job.missionGenerationStatus);
+  const missions = completed && missionGenerationStatus === "completed"
+    ? parseStoredInvestorMissions(job.investorMissions)
+    : null;
 
   return {
     jobId: job.id,
@@ -126,6 +177,12 @@ export function buildSafeDeckReviewJobView(job: DeckReviewJobRecord): SafeDeckRe
     model: job.model,
     errorCategory: job.errorCategory,
     safeErrorMessage: job.safeErrorMessage,
+    missionGenerationStatus,
+    missionCount: missions?.length ?? 0,
+    missionGenerationErrorCategory: job.missionGenerationErrorCategory,
+    missionGenerationSafeErrorMessage: job.missionGenerationSafeErrorMessage,
+    missions,
+    roadmapSummary: completed && missionGenerationStatus === "completed" ? parseStoredRoadmapSummary(job.roadmapSummary) : null,
     createdAt: job.createdAt.toISOString(),
     startedAt: job.startedAt?.toISOString() ?? null,
     completedAt: job.completedAt?.toISOString() ?? null,
@@ -173,7 +230,10 @@ type DeckReviewAuditEvent =
   | "deck_review_access_consumed"
   | "deck_review_started"
   | "deck_review_completed"
-  | "deck_review_failed";
+  | "deck_review_failed"
+  | "deck_review_missions_started"
+  | "deck_review_missions_completed"
+  | "deck_review_missions_failed";
 
 /** Safe metadata only: ids, counts, hashes, categories — never deck content. */
 export function auditDeckReview(event: DeckReviewAuditEvent, metadata: Record<string, string | number | boolean | null | undefined>) {
@@ -323,6 +383,80 @@ export async function runDeckReviewJob(jobId: string, configOverride?: DeckRevie
   }
 
   const aggregate = aggregateFirmReviews(firmReviews);
+  let missionData:
+    | {
+        missionGenerationStatus: "completed";
+        missionGenerationErrorCategory: null;
+        missionGenerationSafeErrorMessage: null;
+        investorMissions: Prisma.InputJsonValue;
+        roadmapSummary: Prisma.InputJsonValue;
+      }
+    | {
+        missionGenerationStatus: "failed";
+        missionGenerationErrorCategory: string;
+        missionGenerationSafeErrorMessage: string;
+        investorMissions: typeof Prisma.JsonNull;
+        roadmapSummary: typeof Prisma.JsonNull;
+      };
+
+  await db.vcDeckReviewJob.update({
+    where: { id: job.id },
+    data: {
+      missionGenerationStatus: "generating",
+      missionGenerationErrorCategory: null,
+      missionGenerationSafeErrorMessage: null,
+    },
+  });
+  auditDeckReview("deck_review_missions_started", { jobId: job.id, provider: config.provider });
+
+  try {
+    const generatedMissions = await generateInvestorMissions(
+      {
+        reviewInputType: parseInputType(job.reviewInputType),
+        deckText: job.extractedText,
+        startup: {
+          name: job.startup.name,
+          sector: job.startup.sector,
+          stage: job.startup.stage,
+          region: job.startup.region,
+          fundingAsk: job.startup.fundingAsk,
+        },
+        startupProfile: parseStoredStartupProfile(job.startupProfile),
+        generatedDeck: parseStoredGeneratedDeck(job.generatedDeck),
+        selectedFirms: firms,
+        firmReviews,
+        aggregateReview: aggregate,
+      },
+      config
+    );
+    missionData = {
+      missionGenerationStatus: "completed",
+      missionGenerationErrorCategory: null,
+      missionGenerationSafeErrorMessage: null,
+      investorMissions: generatedMissions.missions as unknown as Prisma.InputJsonValue,
+      roadmapSummary: generatedMissions.roadmapSummary as unknown as Prisma.InputJsonValue,
+    };
+    auditDeckReview("deck_review_missions_completed", {
+      jobId: job.id,
+      missionCount: generatedMissions.missions.length,
+    });
+  } catch (error) {
+    const providerError =
+      error instanceof DeckReviewProviderError
+        ? error
+        : new DeckReviewProviderError("provider_failed", "Investor mission generation failed.", true);
+    missionData = {
+      missionGenerationStatus: "failed",
+      missionGenerationErrorCategory: providerError.category,
+      missionGenerationSafeErrorMessage: "Investor mission generation failed, but the funding-market review completed.",
+      investorMissions: Prisma.JsonNull,
+      roadmapSummary: Prisma.JsonNull,
+    };
+    auditDeckReview("deck_review_missions_failed", {
+      jobId: job.id,
+      category: providerError.category,
+    });
+  }
 
   await db.vcDeckReviewJob.update({
     where: { id: job.id },
@@ -331,6 +465,7 @@ export async function runDeckReviewJob(jobId: string, configOverride?: DeckRevie
       completedAt: new Date(),
       firmReviews: firmReviews as unknown as Prisma.InputJsonValue,
       aggregateReview: aggregate as unknown as Prisma.InputJsonValue,
+      ...missionData,
     },
   });
 

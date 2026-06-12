@@ -219,6 +219,24 @@ referral credit abstraction.
 
 Creates a generated deck job and returns safe owner-only generated deck JSON.
 
+## Phase 25C Investor Missions
+
+After a PDF, manual pitch, or AI-generated deck review completes, the backend
+also generates owner-only investor missions:
+
+- firm-specific due-diligence milestones
+- aggregate company roadmap summary
+- funding blockers
+- next best actions
+- recommended order
+
+Mission generation is included in the already-authorized review action and does
+not consume a second rewarded/submission credit. If mission generation fails,
+the firm review and aggregate verdict remain available.
+
+See `docs/ai-review/ai-investor-missions-roadmap.md` for the mission schema,
+safety rules, API fields, iOS implications, and Render/GitHub deployment notes.
+
 `GET /api/deck-generation-jobs/:jobId`
 
 Returns the safe generated deck job. Owner/admin only.

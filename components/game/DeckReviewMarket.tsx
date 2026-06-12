@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Building2, FileText, FileUp, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { Building2, FileText, FileUp, Loader2, RefreshCw, ShieldCheck, Sparkles, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type IntakeMode = "pdf_upload" | "manual_pitch" | "ai_generated_deck";
@@ -59,6 +59,40 @@ interface GeneratedDeck {
   qualityScore: number;
 }
 
+interface InvestorMissionView {
+  id?: string;
+  source: "firm_review" | "aggregate_review" | "ai_roadmap" | "safety_gate";
+  firmId?: string;
+  category:
+    | "compliance"
+    | "product"
+    | "traction"
+    | "gtm"
+    | "fundraising"
+    | "finance"
+    | "security"
+    | "operations"
+    | "market_research"
+    | "team"
+    | "legal_planning";
+  title: string;
+  summary: string;
+  whyItMatters: string;
+  acceptanceCriteria: string[];
+  evidenceSource: "deck" | "manual_pitch" | "startup_profile" | "firm_feedback" | "missing_information";
+  priority: "critical" | "important" | "optional";
+  status: "proposed" | "accepted" | "completed" | "dismissed";
+  phaseSuggestion: "before_review" | "before_term_sheet" | "next_sprint" | "demo_day_runway" | "post_verdict";
+  riskArea?: string;
+}
+
+interface RoadmapSummaryView {
+  nextBestAction: string;
+  fundingBlockers: string[];
+  investorConfidencePath: string[];
+  recommendedOrder: string[];
+}
+
 interface JobView {
   jobId: string;
   reviewInputType: IntakeMode;
@@ -67,6 +101,11 @@ interface JobView {
   sourceSummary: string | null;
   accessUsedCredit: boolean;
   safeErrorMessage: string | null;
+  missionGenerationStatus: "not_started" | "generating" | "completed" | "failed";
+  missionCount: number;
+  missionGenerationSafeErrorMessage: string | null;
+  missions: InvestorMissionView[] | null;
+  roadmapSummary: RoadmapSummaryView | null;
   firmReviews: FirmReviewView[] | null;
   aggregateReview: AggregateView | null;
 }
@@ -91,6 +130,12 @@ const OVERALL_STYLES: Record<AggregateView["overallDecision"], string> = {
   mixed: "border-amber-500/30 bg-amber-500/10 text-amber-300",
   conditional: "border-amber-500/30 bg-amber-500/10 text-amber-300",
   fundable: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+};
+
+const MISSION_PRIORITY_STYLES: Record<InvestorMissionView["priority"], string> = {
+  critical: "border-rose-500/35 bg-rose-500/10 text-rose-200",
+  important: "border-amber-500/30 bg-amber-500/10 text-amber-200",
+  optional: "border-cyan-500/25 bg-cyan-500/10 text-cyan-200",
 };
 
 const MODE_OPTIONS: Array<{ id: IntakeMode; label: string; icon: typeof FileUp }> = [
@@ -514,6 +559,78 @@ export function DeckReviewMarket({ startupId }: { startupId: string }) {
               </div>
             ))}
           </div>
+
+          {job.missionGenerationStatus === "generating" && (
+            <div className="flex items-center gap-3 border border-white/10 bg-white/[0.02] p-3 text-xs text-white/55">
+              <Loader2 className="h-4 w-4 animate-spin text-cyan-300" />
+              <span>Building investor missions from firm feedback…</span>
+            </div>
+          )}
+
+          {job.missionGenerationStatus === "failed" && (
+            <div className="border border-amber-500/25 bg-amber-500/10 p-3 text-xs text-amber-200">
+              {job.missionGenerationSafeErrorMessage ?? "Investor missions could not be generated for this review."}
+            </div>
+          )}
+
+          {job.missions && job.missions.length > 0 && (
+            <div className="space-y-3 border border-cyan-500/20 bg-cyan-500/[0.04] p-3">
+              <div className="flex items-start gap-2">
+                <Target className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider text-cyan-200">Investor Missions</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-white/45">
+                    Simulated investor due-diligence missions. Not legal, financial, compliance, or investment advice.
+                  </p>
+                </div>
+              </div>
+
+              {job.roadmapSummary && (
+                <div className="border border-white/10 bg-black/20 p-3">
+                  <p className="text-xs font-bold text-white/75">Next best action</p>
+                  <p className="mt-1 text-xs text-white/55">{job.roadmapSummary.nextBestAction}</p>
+                  {job.roadmapSummary.fundingBlockers.length > 0 && (
+                    <p className="mt-2 text-[11px] text-amber-300/80">
+                      Funding blockers: {job.roadmapSummary.fundingBlockers.slice(0, 3).join(" · ")}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="grid gap-2 lg:grid-cols-2">
+                {job.missions.map((mission) => (
+                  <div key={mission.id ?? mission.title} className="border border-white/10 bg-white/[0.025] p-3">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className={cn("border px-2 py-0.5 text-[10px] font-black uppercase tracking-wider", MISSION_PRIORITY_STYLES[mission.priority])}>
+                        {mission.priority}
+                      </span>
+                      <span className="border border-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/40">
+                        {mission.category.replace(/_/g, " ")}
+                      </span>
+                      {mission.phaseSuggestion && (
+                        <span className="text-[10px] uppercase tracking-wider text-white/30">
+                          {mission.phaseSuggestion.replace(/_/g, " ")}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-black uppercase tracking-wider text-white/80">{mission.title}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-white/55">{mission.summary}</p>
+                    <p className="mt-2 text-[11px] leading-relaxed text-white/40">
+                      <ShieldCheck className="mr-1 inline h-3 w-3 text-cyan-300/80" />
+                      {mission.whyItMatters}
+                    </p>
+                    {mission.acceptanceCriteria.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {mission.acceptanceCriteria.slice(0, 4).map((criterion) => (
+                          <li key={criterion} className="text-[11px] text-white/45">- {criterion}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {job.aggregateReview.suggestedPitchFixes.length > 0 && (
             <div className="border border-cyan-500/20 bg-cyan-500/[0.05] p-3">

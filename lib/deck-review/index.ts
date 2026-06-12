@@ -9,3 +9,4 @@ export * from "./deck-generation";
 export * from "./access-gate";
 export * from "./generation-service";
 export * from "./provider";
+export * from "./missions";

@@ -181,6 +181,169 @@ export const aggregateReviewSchema = z.object({
 
 export type AggregateReview = z.infer<typeof aggregateReviewSchema>;
 
+export const MISSION_GENERATION_STATUSES = ["not_started", "generating", "completed", "failed"] as const;
+export type MissionGenerationStatus = (typeof MISSION_GENERATION_STATUSES)[number];
+
+export const INVESTOR_MISSION_SOURCES = ["firm_review", "aggregate_review", "ai_roadmap", "safety_gate"] as const;
+export type InvestorMissionSource = (typeof INVESTOR_MISSION_SOURCES)[number];
+
+export const INVESTOR_MISSION_CATEGORIES = [
+  "compliance",
+  "product",
+  "traction",
+  "gtm",
+  "fundraising",
+  "finance",
+  "security",
+  "operations",
+  "market_research",
+  "team",
+  "legal_planning",
+] as const;
+export type InvestorMissionCategory = (typeof INVESTOR_MISSION_CATEGORIES)[number];
+
+export const INVESTOR_MISSION_EVIDENCE_SOURCES = [
+  "deck",
+  "manual_pitch",
+  "startup_profile",
+  "firm_feedback",
+  "missing_information",
+] as const;
+export type InvestorMissionEvidenceSource = (typeof INVESTOR_MISSION_EVIDENCE_SOURCES)[number];
+
+export const INVESTOR_MISSION_PRIORITIES = ["critical", "important", "optional"] as const;
+export type InvestorMissionPriority = (typeof INVESTOR_MISSION_PRIORITIES)[number];
+
+export const INVESTOR_MISSION_STATUSES = ["proposed", "accepted", "completed", "dismissed"] as const;
+export type InvestorMissionStatus = (typeof INVESTOR_MISSION_STATUSES)[number];
+
+export const INVESTOR_MISSION_PHASES = [
+  "before_review",
+  "before_term_sheet",
+  "next_sprint",
+  "demo_day_runway",
+  "post_verdict",
+] as const;
+export type InvestorMissionPhaseSuggestion = (typeof INVESTOR_MISSION_PHASES)[number];
+
+const missionSafetyBlockedPhrases = [
+  "you are compliant",
+  "legally compliant",
+  "regulatory approval secured",
+  "authorization granted",
+  "license approved",
+  "guaranteed funding",
+  "funding is guaranteed",
+  "real funding has been secured",
+  "investors will invest",
+];
+
+const compliancePlanningLanguage = [
+  "clarify",
+  "map",
+  "identify",
+  "prepare",
+  "validate",
+  "investigate",
+  "document",
+  "assess",
+  "review",
+  "outline",
+  "confirm",
+];
+
+const investorMissionBaseSchema = z.object({
+  id: z.string().trim().min(1).max(80).optional(),
+  source: z.enum(INVESTOR_MISSION_SOURCES).default("ai_roadmap"),
+  firmId: z.string().trim().min(1).max(120).optional(),
+  category: z.enum(INVESTOR_MISSION_CATEGORIES),
+  title: z.string().trim().min(4).max(140),
+  summary: z.string().trim().min(12).max(700),
+  whyItMatters: z.string().trim().min(12).max(700),
+  acceptanceCriteria: z.array(z.string().trim().min(4).max(220)).min(2).max(6),
+  evidenceSource: z.enum(INVESTOR_MISSION_EVIDENCE_SOURCES),
+  priority: z.enum(INVESTOR_MISSION_PRIORITIES),
+  status: z.enum(INVESTOR_MISSION_STATUSES).default("proposed"),
+  phaseSuggestion: z.enum(INVESTOR_MISSION_PHASES),
+  riskArea: z.string().trim().max(180).optional(),
+});
+
+export const investorMissionSchema = investorMissionBaseSchema.superRefine((mission, ctx) => {
+  const combined = [
+    mission.title,
+    mission.summary,
+    mission.whyItMatters,
+    mission.riskArea ?? "",
+    ...mission.acceptanceCriteria,
+  ].join(" ").toLowerCase();
+
+  for (const phrase of missionSafetyBlockedPhrases) {
+    if (combined.includes(phrase)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Mission contains unsafe claim: ${phrase}`,
+      });
+    }
+  }
+
+  if (mission.category === "compliance" || mission.category === "legal_planning") {
+    const usesPlanningLanguage = compliancePlanningLanguage.some((word) => combined.includes(word));
+    if (!usesPlanningLanguage) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Compliance/legal-planning missions must use planning language such as clarify, map, identify, validate, or investigate.",
+      });
+    }
+  }
+});
+
+export type InvestorMission = z.infer<typeof investorMissionSchema>;
+
+export const investorMissionRoadmapSummarySchema = z.object({
+  nextBestAction: z.string().trim().min(1).max(700),
+  fundingBlockers: z.array(z.string().trim().min(1).max(240)).max(8).default([]),
+  investorConfidencePath: z.array(z.string().trim().min(1).max(240)).max(8).default([]),
+  recommendedOrder: z.array(z.string().trim().min(1).max(140)).max(8).default([]),
+});
+
+export type InvestorMissionRoadmapSummary = z.infer<typeof investorMissionRoadmapSummarySchema>;
+
+export const investorMissionOutputSchema = z.object({
+  missions: z.array(investorMissionSchema).min(3).max(8),
+  roadmapSummary: investorMissionRoadmapSummarySchema,
+});
+
+export type InvestorMissionOutput = z.infer<typeof investorMissionOutputSchema>;
+
+export function parseInvestorMissionModelOutput(rawText: string):
+  | { ok: true; value: InvestorMissionOutput }
+  | { ok: false; error: string } {
+  let jsonText = rawText.trim();
+  const fenced = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) jsonText = fenced[1].trim();
+
+  const firstBrace = jsonText.indexOf("{");
+  const lastBrace = jsonText.lastIndexOf("}");
+  if (firstBrace === -1 || lastBrace <= firstBrace) {
+    return { ok: false, error: "Mission output contained no JSON object." };
+  }
+  jsonText = jsonText.slice(firstBrace, lastBrace + 1);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch {
+    return { ok: false, error: "Mission output was not valid JSON." };
+  }
+
+  const result = investorMissionOutputSchema.safeParse(parsed);
+  if (!result.success) {
+    const issues = result.error.issues.slice(0, 4).map((issue) => `${issue.path.join(".")}: ${issue.message}`);
+    return { ok: false, error: `Mission output failed schema validation (${issues.join("; ")}).` };
+  }
+  return { ok: true, value: result.data };
+}
+
 /** Job lifecycle states exposed by the API. */
 export const DECK_REVIEW_JOB_STATUSES = [
   "uploaded",

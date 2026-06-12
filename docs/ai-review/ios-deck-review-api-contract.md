@@ -108,6 +108,12 @@ Accepted response shape:
     "model": null,
     "errorCategory": null,
     "safeErrorMessage": null,
+    "missionGenerationStatus": "not_started",
+    "missionCount": 0,
+    "missionGenerationErrorCategory": null,
+    "missionGenerationSafeErrorMessage": null,
+    "missions": null,
+    "roadmapSummary": null,
     "createdAt": "2026-06-11T19:00:00.000Z",
     "startedAt": null,
     "completedAt": null,
@@ -186,7 +192,61 @@ Completed response shape:
       "bestNextMilestones": ["Show cohort retention"],
       "suggestedPitchFixes": ["Add retention and CAC evidence"],
       "playerFacingSummary": "The funding market is interested but wants stronger proof before a clean term sheet."
+    },
+    "missionGenerationStatus": "completed",
+    "missionCount": 3,
+    "missionGenerationErrorCategory": null,
+    "missionGenerationSafeErrorMessage": null,
+    "missions": [
+      {
+        "id": "prove_customer_pain_and_retention_signal",
+        "source": "firm_review",
+        "firmId": "marketproof_partners",
+        "category": "traction",
+        "title": "Prove customer pain and retention signal",
+        "summary": "MercuryOps needs stronger evidence that finance operators repeatedly feel the problem and return to the product.",
+        "whyItMatters": "The funding market rewards repeatable demand evidence more than broad market claims.",
+        "acceptanceCriteria": [
+          "Document three concrete customer pain examples",
+          "Add one retention or repeat-usage signal",
+          "Separate confirmed customer evidence from assumptions"
+        ],
+        "evidenceSource": "firm_feedback",
+        "priority": "important",
+        "status": "proposed",
+        "phaseSuggestion": "next_sprint",
+        "riskArea": "retention proof"
+      }
+    ],
+    "roadmapSummary": {
+      "nextBestAction": "Prove customer pain and retention signal",
+      "fundingBlockers": ["Needs retention evidence"],
+      "investorConfidencePath": ["Close the highest-priority diligence blocker"],
+      "recommendedOrder": ["Prove customer pain and retention signal"]
     }
+  }
+}
+```
+
+### `GET /api/vc-review-jobs/:jobId/missions`
+
+Returns only the safe investor mission subset for a completed review job.
+Owner/admin only.
+
+```json
+{
+  "jobId": "clx_job_id",
+  "startupId": "clx_startup_id",
+  "missionGenerationStatus": "completed",
+  "missionCount": 3,
+  "missionGenerationErrorCategory": null,
+  "missionGenerationSafeErrorMessage": null,
+  "missions": [],
+  "roadmapSummary": {
+    "nextBestAction": "Prove customer pain and retention signal",
+    "fundingBlockers": [],
+    "investorConfidencePath": [],
+    "recommendedOrder": []
   }
 }
 ```
@@ -263,6 +323,8 @@ Returns the safe generated deck job. Owner/admin only.
 - `failed`: safe error is available through `errorCategory` and
   `safeErrorMessage`.
 - Deck generation jobs use `generating`, `completed`, and `failed`.
+- Mission generation uses `not_started`, `generating`, `completed`, and
+  `failed`. A review job may be `completed` even if mission generation failed.
 
 The `POST /api/vc-review-jobs` response may skip short-lived intermediate
 states when extraction completes quickly. iOS should treat statuses as a state
@@ -303,6 +365,12 @@ Sample scanned/image-only failure:
     "model": null,
     "errorCategory": "extraction_failed",
     "safeErrorMessage": "This PDF contains no readable text (it may be a scanned or image-only export). Export a text-based PDF and try again — OCR is not supported yet.",
+    "missionGenerationStatus": "not_started",
+    "missionCount": 0,
+    "missionGenerationErrorCategory": null,
+    "missionGenerationSafeErrorMessage": null,
+    "missions": null,
+    "roadmapSummary": null,
     "createdAt": "2026-06-11T19:00:00.000Z",
     "startedAt": null,
     "completedAt": "2026-06-11T19:00:03.000Z",
@@ -329,6 +397,7 @@ No iOS or frontend API response may include:
 - private logo paths
 - raw manual pitch text
 - raw generated deck JSON on review jobs
+- raw mission prompt text
 - raw prompts
 - raw provider payloads
 - API keys
@@ -381,8 +450,13 @@ server returns `402`:
 8. Show aggregate verdict first.
 9. Show firm review cards with score, decision, reasons, concerns, questions,
    required milestones, and missing information.
-10. Use copy that makes clear these are fictional in-game firms and not real
+10. If `missionGenerationStatus=completed`, show investor missions and roadmap
+    summary. If it failed, keep the review visible and show a restrained mission
+    failure note.
+11. Use copy that makes clear these are fictional in-game firms and not real
    funding decisions.
+12. For missions, use: "These are simulated investor due-diligence missions,
+    not legal, financial, compliance, or investment advice."
 
 ## Privacy and Security Rules
 

@@ -659,6 +659,11 @@ model VcDeckReviewJob {
   model                  String?
   firmReviews            Json?
   aggregateReview        Json?
+  missionGenerationStatus String    @default("not_started")
+  missionGenerationErrorCategory String?
+  missionGenerationSafeErrorMessage String?
+  investorMissions       Json?
+  roadmapSummary         Json?
   errorCategory          String?
   safeErrorMessage       String?
   startedAt              DateTime?
@@ -674,6 +679,7 @@ model VcDeckReviewJob {
   @@index([status])
   @@index([createdAt])
   @@index([reviewInputType])
+  @@index([missionGenerationStatus])
   @@map("vc_deck_review_jobs")
 }
 

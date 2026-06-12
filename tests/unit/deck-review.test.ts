@@ -11,12 +11,16 @@ import {
   generatedDeckSchema,
   generatedDeckToReviewText,
   generateMockDeck,
+  generateMockFirmReview,
+  generateMockInvestorMissions,
   extractDeckText,
   evaluateDeckAiAccess,
   firmReviewSchema,
+  investorMissionOutputSchema,
   listPublicInvestmentFirms,
   parseGeneratedDeckModelOutput,
   parseFirmReviewModelOutput,
+  parseInvestorMissionModelOutput,
   resolveSelectedFirms,
   startupProfileSchema,
   storeDeckPdf,
@@ -155,6 +159,145 @@ describe("AI investment firm deck review foundation", () => {
       upgradeRequired: true,
       requiredAction: "premium_or_reward_credit",
     });
+  });
+
+  it("generates safe deterministic investor missions from firm feedback and profile risk", () => {
+    const profile = startupProfileSchema.parse({
+      companyName: "VaultPay",
+      city: "London",
+      country: "UK",
+      sector: "FinTech payments",
+      targetCustomer: "marketplaces that hold customer funds",
+      currentStage: "seed",
+      realLifeStartup: true,
+      shortDescription: "Wallet infrastructure for marketplaces that may hold customer funds before payouts.",
+    });
+    const firmReviews = [
+      sampleFirmReview({
+        firmId: "fintrust_capital",
+        firmName: "FinTrust Capital",
+        decision: "conditional",
+        mainConcerns: ["Unclear licensing and KYC/AML ownership"],
+        missingInformation: ["Custody model", "Compliance owner"],
+        requiredMilestones: ["Clarify authorization path"],
+      }),
+      sampleFirmReview({ firmId: "marketproof_partners", firmName: "MarketProof Partners" }),
+    ];
+    const aggregate = aggregateFirmReviews(firmReviews);
+    const output = generateMockInvestorMissions({
+      reviewInputType: "manual_pitch",
+      deckText: "VaultPay is a fintech wallet that helps marketplaces hold funds before seller payouts.",
+      startup: { name: "VaultPay", sector: "fintech", stage: "seed", region: "UK", fundingAsk: 1_500_000 },
+      startupProfile: profile,
+      selectedFirms: INVESTMENT_FIRMS.slice(0, 3),
+      firmReviews,
+      aggregateReview: aggregate,
+    });
+
+    expect(investorMissionOutputSchema.safeParse(output).success).toBe(true);
+    expect(output.missions.length).toBeGreaterThanOrEqual(3);
+    expect(output.missions.length).toBeLessThanOrEqual(8);
+    expect(output.missions.some((mission) => mission.category === "compliance")).toBe(true);
+    expect(JSON.stringify(output).toLowerCase()).toContain("clarify");
+    expect(JSON.stringify(output).toLowerCase()).not.toContain("you are compliant");
+    expect(JSON.stringify(output).toLowerCase()).not.toContain("guaranteed funding");
+    expect(output.roadmapSummary.recommendedOrder.length).toBeGreaterThan(0);
+  });
+
+  it("rejects unsafe mission output that claims compliance or guaranteed funding", () => {
+    const unsafe = parseInvestorMissionModelOutput(JSON.stringify({
+      missions: [
+        {
+          category: "compliance",
+          title: "You are compliant and guaranteed funding",
+          summary: "You are compliant with all laws and investors will invest.",
+          whyItMatters: "Regulatory approval secured.",
+          acceptanceCriteria: ["Tell investors license approved", "Claim funding is guaranteed"],
+          evidenceSource: "startup_profile",
+          priority: "critical",
+          phaseSuggestion: "before_term_sheet",
+        },
+        {
+          category: "traction",
+          title: "Show traction",
+          summary: "Show proof of repeat usage.",
+          whyItMatters: "Investors need demand evidence.",
+          acceptanceCriteria: ["Add retention evidence", "Separate assumptions"],
+          evidenceSource: "missing_information",
+          priority: "important",
+          phaseSuggestion: "next_sprint",
+        },
+        {
+          category: "gtm",
+          title: "Define GTM wedge",
+          summary: "Clarify the first customer segment.",
+          whyItMatters: "Distribution risk is unresolved.",
+          acceptanceCriteria: ["Name buyer", "Name channel"],
+          evidenceSource: "firm_feedback",
+          priority: "important",
+          phaseSuggestion: "before_review",
+        },
+      ],
+      roadmapSummary: {
+        nextBestAction: "Fix unsafe claims",
+        fundingBlockers: ["Unsafe claims"],
+        investorConfidencePath: ["Replace claims with evidence"],
+        recommendedOrder: ["You are compliant and guaranteed funding"],
+      },
+    }));
+
+    expect(unsafe).toMatchObject({ ok: false });
+  });
+
+  it("runs mock mission smokes for AI-generated deck and PDF review inputs", async () => {
+    const profile = startupProfileSchema.parse({
+      companyName: "MercuryOps",
+      sector: "AI SaaS",
+      country: "US",
+      targetCustomer: "finance operators",
+      currentStage: "seed",
+    });
+    const generatedDeck = generateMockDeck({
+      startup: { name: "MercuryOps", sector: "AI SaaS", stage: "seed", targetMarket: "finance operators" },
+      startupProfile: profile,
+      requestText: "Generate a professional deck for an AI finance operations startup.",
+    });
+    const firms = INVESTMENT_FIRMS.slice(0, 3);
+    const generatedDeckText = generatedDeckToReviewText(generatedDeck);
+    const generatedDeckReviews = firms.map((firm) => generateMockFirmReview({ firm, deckText: generatedDeckText }));
+    const generatedDeckAggregate = aggregateFirmReviews(generatedDeckReviews);
+    const generatedDeckMissions = generateMockInvestorMissions({
+      reviewInputType: "ai_generated_deck",
+      deckText: generatedDeckText,
+      startup: { name: "MercuryOps", sector: "AI SaaS", stage: "seed", region: "US", fundingAsk: 2_000_000 },
+      startupProfile: profile,
+      generatedDeck,
+      selectedFirms: firms,
+      firmReviews: generatedDeckReviews,
+      aggregateReview: generatedDeckAggregate,
+    });
+
+    expect(generatedDeckMissions.missions.length).toBeGreaterThanOrEqual(3);
+    expect(generatedDeckMissions.roadmapSummary.nextBestAction).toBeTruthy();
+
+    const extracted = await extractDeckText(buildTextPdf(buildDeckLines()));
+    expect(extracted.ok).toBe(true);
+    if (!extracted.ok) return;
+
+    const pdfReviews = firms.map((firm) => generateMockFirmReview({ firm, deckText: extracted.value.text }));
+    const pdfAggregate = aggregateFirmReviews(pdfReviews);
+    const pdfMissions = generateMockInvestorMissions({
+      reviewInputType: "pdf_upload",
+      deckText: extracted.value.text,
+      startup: { name: "CloudLedger", sector: "SaaS", stage: "seed", region: "US", fundingAsk: 1_000_000 },
+      startupProfile: null,
+      selectedFirms: firms,
+      firmReviews: pdfReviews,
+      aggregateReview: pdfAggregate,
+    });
+
+    expect(pdfMissions.missions.length).toBeGreaterThanOrEqual(3);
+    expect(JSON.stringify(pdfMissions).toLowerCase()).not.toContain("guaranteed funding");
   });
 
   it("auto-selects sector-relevant firms and rejects unknown explicit IDs", () => {
@@ -350,6 +493,30 @@ describe("AI investment firm deck review foundation", () => {
       model: "mock",
       firmReviews: [review],
       aggregateReview: aggregateFirmReviews([review]),
+      missionGenerationStatus: "completed",
+      missionGenerationErrorCategory: null,
+      missionGenerationSafeErrorMessage: null,
+      investorMissions: [
+        {
+          id: "mission-1",
+          source: "aggregate_review",
+          category: "fundraising",
+          title: "Build funding readiness dossier",
+          summary: "PRIVATE GENERATED MISSION SAFE SUMMARY",
+          whyItMatters: "Investors need diligence evidence.",
+          acceptanceCriteria: ["List missing evidence", "Assign owners"],
+          evidenceSource: "firm_feedback",
+          priority: "important",
+          status: "proposed",
+          phaseSuggestion: "post_verdict",
+        },
+      ],
+      roadmapSummary: {
+        nextBestAction: "Build funding readiness dossier",
+        fundingBlockers: ["Missing evidence"],
+        investorConfidencePath: ["Close diligence blocker"],
+        recommendedOrder: ["Build funding readiness dossier"],
+      },
       errorCategory: null,
       safeErrorMessage: null,
       startedAt: new Date("2026-06-11T00:00:00.000Z"),
@@ -369,5 +536,7 @@ describe("AI investment firm deck review foundation", () => {
     expect(serialized).not.toContain("private-logo");
     expect(serialized).not.toContain("PRIVATE GENERATED DECK");
     expect(serialized.toLowerCase()).not.toContain("prompt");
+    expect(serialized).toContain("PRIVATE GENERATED MISSION SAFE SUMMARY");
+    expect(safe.missionCount).toBe(1);
   });
 });
