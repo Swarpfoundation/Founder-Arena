@@ -85,6 +85,13 @@ Auth providers:
 - `AUTH_GITHUB_ID`
 - `AUTH_GITHUB_SECRET`
 
+Mobile iOS auth:
+
+- `MOBILE_AUTH_ENABLED=true`
+- `MOBILE_AUTH_ALLOWED_REDIRECT_URIS=founderarena://auth-callback`
+- `MOBILE_AUTH_CODE_TTL_SECONDS=300`
+- `MOBILE_AUTH_TOKEN_TTL_DAYS=30`
+
 AI review:
 
 - `DEEPSEEK_API_KEY`

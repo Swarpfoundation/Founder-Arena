@@ -1,0 +1,62 @@
+import { NextRequest, NextResponse } from "next/server";
+import {
+  buildMobileAuthCallbackUrl,
+  isAllowedMobileRedirectUri,
+  isMobileAuthEnabled,
+  parseMobileAuthProvider,
+} from "@/lib/mobile-auth/core";
+import { createMobileAuthAttempt } from "@/lib/mobile-auth/service";
+
+export const dynamic = "force-dynamic";
+
+const PKCE_CHALLENGE_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
+
+function getBackendBaseUrl(request: NextRequest): string {
+  return process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? request.nextUrl.origin;
+}
+
+export async function GET(request: NextRequest) {
+  if (!isMobileAuthEnabled()) {
+    return NextResponse.json({ error: "Mobile auth is disabled." }, { status: 403 });
+  }
+
+  const provider = parseMobileAuthProvider(request.nextUrl.searchParams.get("provider"));
+  if (!provider) {
+    return NextResponse.json({ error: "Unsupported mobile auth provider." }, { status: 400 });
+  }
+
+  const redirectUri = request.nextUrl.searchParams.get("redirect_uri")?.trim() ?? "";
+  if (!redirectUri || !isAllowedMobileRedirectUri(redirectUri)) {
+    return NextResponse.json({ error: "Unapproved mobile redirect URI." }, { status: 400 });
+  }
+
+  const state = request.nextUrl.searchParams.get("state")?.trim() ?? "";
+  if (state.length < 32 || state.length > 256) {
+    return NextResponse.json({ error: "Invalid mobile auth state." }, { status: 400 });
+  }
+
+  const codeChallenge = request.nextUrl.searchParams.get("code_challenge")?.trim() || null;
+  const codeChallengeMethod = request.nextUrl.searchParams.get("code_challenge_method")?.trim() || "S256";
+  if (codeChallenge && (!PKCE_CHALLENGE_PATTERN.test(codeChallenge) || codeChallengeMethod !== "S256")) {
+    return NextResponse.json({ error: "Invalid mobile PKCE challenge." }, { status: 400 });
+  }
+
+  const attempt = await createMobileAuthAttempt({
+    provider,
+    redirectUri,
+    state,
+    codeChallenge,
+    codeChallengeMethod: codeChallenge ? codeChallengeMethod : null,
+  });
+
+  const baseUrl = getBackendBaseUrl(request);
+  const callbackUrl = buildMobileAuthCallbackUrl({
+    baseUrl,
+    attemptId: attempt.id,
+    state,
+  });
+  const signInUrl = new URL(`/api/auth/signin/${provider}`, baseUrl);
+  signInUrl.searchParams.set("callbackUrl", callbackUrl);
+
+  return NextResponse.redirect(signInUrl);
+}

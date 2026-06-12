@@ -52,8 +52,67 @@ model User {
   queuedActions QueuedAction[]
   deckReviewJobs VcDeckReviewJob[]
   deckGenerationJobs VcDeckGenerationJob[]
+  mobileAuthCodes MobileAuthCode[]
+  mobileAuthTokens MobileAuthToken[]
 
   @@map("users")
+}
+
+model MobileAuthCode {
+  id                  String    @id @default(cuid())
+  userId              String
+  codeHash            String    @unique
+  stateHash           String
+  redirectUri         String
+  codeChallenge       String?
+  codeChallengeMethod String?
+  createdAt           DateTime  @default(now())
+  expiresAt           DateTime
+  usedAt              DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([usedAt])
+  @@map("mobile_auth_codes")
+}
+
+model MobileAuthToken {
+  id          String    @id @default(cuid())
+  userId      String
+  tokenHash   String    @unique
+  deviceName  String?
+  appVersion  String?
+  userAgent   String?
+  ipHash      String?
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+  @@map("mobile_auth_tokens")
+}
+
+model MobileAuthAttempt {
+  id                  String    @id @default(cuid())
+  provider            String
+  redirectUri         String
+  stateHash           String
+  codeChallenge       String?
+  codeChallengeMethod String?
+  createdAt           DateTime  @default(now())
+  expiresAt           DateTime
+  consumedAt          DateTime?
+
+  @@index([expiresAt])
+  @@index([consumedAt])
+  @@map("mobile_auth_attempts")
 }
 
 model FounderProfile {

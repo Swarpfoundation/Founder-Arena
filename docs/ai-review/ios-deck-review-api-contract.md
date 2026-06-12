@@ -9,11 +9,36 @@ outreach, CRM activity, or legal commitments.
 
 - All deck review job routes require the same authenticated Founder Arena user
   session as the web game.
-- iOS should call these endpoints with the app's authenticated session/token
-  mechanism once mobile auth is wired.
+- iOS should authenticate with the backend mobile token exchange, then call
+  protected endpoints with `Authorization: Bearer <token>`.
 - A user may only create and view jobs for startups they own.
 - Configured admins may inspect safe job status, but never raw deck text,
   storage keys, prompts, or provider payloads.
+
+### Mobile Auth Contract
+
+Native iOS should use `ASWebAuthenticationSession`:
+
+1. Generate random `state` and optional PKCE verifier/challenge.
+2. Open:
+
+```text
+https://api.founderarena.xyz/api/mobile-auth/start?provider=google&redirect_uri=founderarena://auth-callback&state=<state>&code_challenge=<challenge>&code_challenge_method=S256
+```
+
+3. Receive:
+
+```text
+founderarena://auth-callback?code=<one-time-code>&state=<state>
+```
+
+4. Verify `state`.
+5. `POST /api/mobile-auth/exchange`.
+6. Store the returned bearer token in Keychain.
+7. Send `Authorization: Bearer <token>` on protected API calls.
+
+See `docs/auth/mobile-auth-token-exchange.md` for the complete endpoint
+contract and security invariants.
 
 ## Endpoints
 

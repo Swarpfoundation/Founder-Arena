@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
 import { NextRequest, NextResponse, after } from "next/server";
 import { Prisma } from "@prisma/client";
-import { getCurrentUserOrDevDemoUser } from "@/lib/auth-helpers";
+import { getFounderArenaAuthContext } from "@/lib/auth-context";
 import { db } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
@@ -72,10 +72,11 @@ function summarizeInput(inputType: ReviewInputType, text: string, generatedDeck?
  * - firmIds     optional, comma-separated firm ids; auto-selected by sector when omitted
  */
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUserOrDevDemoUser();
-  if (!user) {
+  const authContext = await getFounderArenaAuthContext(request);
+  if (!authContext) {
     return NextResponse.json({ error: "Sign in to submit a deck for review." }, { status: 401 });
   }
+  const user = authContext.user;
 
   const rateLimitError = await checkRateLimit(user.id, "vcReview");
   if (rateLimitError) {

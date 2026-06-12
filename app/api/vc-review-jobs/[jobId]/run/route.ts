@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUserOrDevDemoUser } from "@/lib/auth-helpers";
+import { getFounderArenaAuthContext } from "@/lib/auth-context";
 import { evaluatePrivateBetaAdminAccess } from "@/lib/admin/private-beta-dashboard";
 import {
   buildSafeDeckReviewJobView,
@@ -21,13 +21,14 @@ export const maxDuration = 300;
  * - production: configured admin only
  */
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ jobId: string }> }
 ) {
-  const user = await getCurrentUserOrDevDemoUser();
-  if (!user) {
+  const authContext = await getFounderArenaAuthContext(request);
+  if (!authContext) {
     return NextResponse.json({ error: "Sign in to run review jobs." }, { status: 401 });
   }
+  const user = authContext.user;
 
   const { jobId } = await context.params;
   const result = await getDeckReviewJobForUser({ jobId, user });

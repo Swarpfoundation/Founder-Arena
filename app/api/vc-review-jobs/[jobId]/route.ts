@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUserOrDevDemoUser } from "@/lib/auth-helpers";
+import { getFounderArenaAuthContext } from "@/lib/auth-context";
 import { buildSafeDeckReviewJobView, getDeckReviewJobForUser } from "@/lib/deck-review/service";
 
 export const dynamic = "force-dynamic";
@@ -13,13 +13,14 @@ export const dynamic = "force-dynamic";
  * notes, prompts, or raw model output.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ jobId: string }> }
 ) {
-  const user = await getCurrentUserOrDevDemoUser();
-  if (!user) {
+  const authContext = await getFounderArenaAuthContext(request);
+  if (!authContext) {
     return NextResponse.json({ error: "Sign in to view review jobs." }, { status: 401 });
   }
+  const user = authContext.user;
 
   const { jobId } = await context.params;
   const result = await getDeckReviewJobForUser({ jobId, user });

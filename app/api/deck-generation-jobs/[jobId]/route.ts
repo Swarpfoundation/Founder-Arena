@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUserOrDevDemoUser } from "@/lib/auth-helpers";
+import { getFounderArenaAuthContext } from "@/lib/auth-context";
 import { buildSafeDeckGenerationJobView, getDeckGenerationJobForUser } from "@/lib/deck-review/generation-service";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ jobId: string }> }
 ) {
-  const user = await getCurrentUserOrDevDemoUser();
-  if (!user) {
+  const authContext = await getFounderArenaAuthContext(request);
+  if (!authContext) {
     return NextResponse.json({ error: "Sign in to view generated decks." }, { status: 401 });
   }
+  const user = authContext.user;
 
   const { jobId } = await context.params;
   const result = await getDeckGenerationJobForUser({ jobId, user });

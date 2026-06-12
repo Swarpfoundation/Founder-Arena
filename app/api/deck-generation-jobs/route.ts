@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { getCurrentUserOrDevDemoUser } from "@/lib/auth-helpers";
+import { getFounderArenaAuthContext } from "@/lib/auth-context";
 import { db } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
@@ -19,10 +19,11 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUserOrDevDemoUser();
-  if (!user) {
+  const authContext = await getFounderArenaAuthContext(request);
+  if (!authContext) {
     return NextResponse.json({ error: "Sign in to generate a deck." }, { status: 401 });
   }
+  const user = authContext.user;
 
   const rateLimitError = await checkRateLimit(user.id, "vcReview");
   if (rateLimitError) {
