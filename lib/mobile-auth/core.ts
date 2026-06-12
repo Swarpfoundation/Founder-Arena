@@ -122,9 +122,35 @@ export function buildMobileAuthCallbackUrl(input: {
   attemptId: string;
   state: string;
 }): string {
-  const url = new URL("/api/mobile-auth/callback", input.baseUrl);
+  const url = new URL(buildMobileAuthCallbackPath({
+    attemptId: input.attemptId,
+    state: input.state,
+  }), input.baseUrl);
+  return url.toString();
+}
+
+export function buildMobileAuthCallbackPath(input: {
+  attemptId: string;
+  state: string;
+}): string {
+  const url = new URL("/api/mobile-auth/callback", "https://founder-arena.local");
   url.searchParams.set("attempt", input.attemptId);
   url.searchParams.set("state", input.state);
+  return `${url.pathname}${url.search}`;
+}
+
+export function buildMobileAuthLoginUrl(input: {
+  origin: string;
+  provider: MobileAuthProvider;
+  attemptId: string;
+  state: string;
+}): string {
+  const url = new URL("/login", input.origin);
+  url.searchParams.set("callbackUrl", buildMobileAuthCallbackPath({
+    attemptId: input.attemptId,
+    state: input.state,
+  }));
+  url.searchParams.set("provider", input.provider);
   return url.toString();
 }
 

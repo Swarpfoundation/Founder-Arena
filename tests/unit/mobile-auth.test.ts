@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   appendCodeToMobileRedirect,
+  buildMobileAuthCallbackPath,
   buildMobileAuthCallbackUrl,
+  buildMobileAuthLoginUrl,
   evaluateMobileTokenStatus,
   extractBearerToken,
   getAllowedRedirectUris,
@@ -90,12 +92,26 @@ describe("mobile auth token exchange helpers", () => {
   });
 
   it("builds callback and app redirect URLs without leaking secrets", () => {
+    const callbackPath = buildMobileAuthCallbackPath({
+      attemptId: "attempt-1",
+      state: "state-1",
+    });
+    expect(callbackPath).toBe("/api/mobile-auth/callback?attempt=attempt-1&state=state-1");
+
     const callback = buildMobileAuthCallbackUrl({
       baseUrl: "https://api.founderarena.xyz",
       attemptId: "attempt-1",
       state: "state-1",
     });
     expect(callback).toBe("https://api.founderarena.xyz/api/mobile-auth/callback?attempt=attempt-1&state=state-1");
+
+    const loginUrl = buildMobileAuthLoginUrl({
+      origin: "https://api.founderarena.xyz",
+      provider: "google",
+      attemptId: "attempt-1",
+      state: "state-1",
+    });
+    expect(loginUrl).toBe("https://api.founderarena.xyz/login?callbackUrl=%2Fapi%2Fmobile-auth%2Fcallback%3Fattempt%3Dattempt-1%26state%3Dstate-1&provider=google");
 
     const appRedirect = appendCodeToMobileRedirect({
       redirectUri: "founderarena://auth-callback",

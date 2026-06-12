@@ -13,12 +13,21 @@ describe("auth redirect helpers", () => {
     expect(sanitizeAuthCallbackUrl("/startup/abc")).toBe("/startup/abc");
   });
 
+  it("allows only the mobile auth API callback path", () => {
+    expect(sanitizeAuthCallbackUrl("/api/mobile-auth/callback?attempt=abc&state=xyz"))
+      .toBe("/api/mobile-auth/callback?attempt=abc&state=xyz");
+    expect(sanitizeAuthCallbackUrl("/api/mobile-auth/callback")).toBe("/api/mobile-auth/callback");
+    expect(sanitizeAuthCallbackUrl("/api/mobile-auth/callback/extra")).toBe("/dashboard");
+    expect(sanitizeAuthCallbackUrl("/api/mobile-auth/callbackevil?attempt=abc")).toBe("/dashboard");
+  });
+
   it("rejects external, protocol-relative, login, and api callback paths", () => {
     expect(sanitizeAuthCallbackUrl("https://evil.com")).toBe("/dashboard");
     expect(sanitizeAuthCallbackUrl("//evil.com")).toBe("/dashboard");
     expect(sanitizeAuthCallbackUrl("/login")).toBe("/dashboard");
     expect(sanitizeAuthCallbackUrl("/login?callbackUrl=/dashboard")).toBe("/dashboard");
     expect(sanitizeAuthCallbackUrl("/api/auth/signin")).toBe("/dashboard");
+    expect(sanitizeAuthCallbackUrl("/api/vc-review-jobs")).toBe("/dashboard");
   });
 
   it("returns mobile marketing landing CTA state for logged-out visitors", () => {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  buildMobileAuthCallbackUrl,
+  buildMobileAuthLoginUrl,
   isAllowedMobileRedirectUri,
   isMobileAuthEnabled,
   parseMobileAuthProvider,
@@ -10,10 +10,6 @@ import { createMobileAuthAttempt } from "@/lib/mobile-auth/service";
 export const dynamic = "force-dynamic";
 
 const PKCE_CHALLENGE_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
-
-function getBackendBaseUrl(request: NextRequest): string {
-  return process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? request.nextUrl.origin;
-}
 
 export async function GET(request: NextRequest) {
   if (!isMobileAuthEnabled()) {
@@ -49,14 +45,10 @@ export async function GET(request: NextRequest) {
     codeChallengeMethod: codeChallenge ? codeChallengeMethod : null,
   });
 
-  const baseUrl = getBackendBaseUrl(request);
-  const callbackUrl = buildMobileAuthCallbackUrl({
-    baseUrl,
+  return NextResponse.redirect(buildMobileAuthLoginUrl({
+    origin: request.nextUrl.origin,
+    provider,
     attemptId: attempt.id,
     state,
-  });
-  const signInUrl = new URL(`/api/auth/signin/${provider}`, baseUrl);
-  signInUrl.searchParams.set("callbackUrl", callbackUrl);
-
-  return NextResponse.redirect(signInUrl);
+  }));
 }
