@@ -12,7 +12,12 @@ export const dynamic = "force-dynamic";
 const PKCE_CHALLENGE_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
 
 function getPublicBackendOrigin(request: NextRequest): string {
-  return process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? request.nextUrl.origin;
+  return (
+    process.env.AUTH_URL
+    ?? process.env.NEXTAUTH_URL
+    ?? process.env.NEXT_PUBLIC_APP_URL
+    ?? request.nextUrl.origin
+  );
 }
 
 export async function GET(request: NextRequest) {
