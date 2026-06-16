@@ -66,10 +66,36 @@ Response:
       "founderStyle": null,
       "currentMonth": 0,
       "status": "draft",
-      "fundingStage": "idea",
+      "fundingStage": "prototype",
+      "country": "United Kingdom",
+      "countryCode": "GB",
+      "city": "London",
+      "stage": "prototype",
       "cash": 0,
       "monthlyBurn": 0,
       "valuation": 0,
+      "profile": {
+        "companyName": "VaultPay",
+        "oneLinePitch": "Compliance-aware wallet infrastructure for marketplaces.",
+        "description": "Wallet infrastructure for marketplaces that may hold customer funds before payouts.",
+        "problem": "Marketplace operators need a clearer custody and payout authorization path.",
+        "solution": "VaultPay maps fund custody assumptions, KYC ownership, and payout operations.",
+        "targetCustomer": "marketplace operators",
+        "market": "B2B marketplaces in regulated payment flows",
+        "businessModel": "SaaS plus transaction usage fees",
+        "websiteUrl": "https://vaultpay.example",
+        "city": "London",
+        "country": "United Kingdom",
+        "countryCode": "GB",
+        "socialLinks": [{ "platform": "github", "url": "https://github.com/example/vaultpay" }],
+        "currentStage": "prototype",
+        "realLifeStartup": true,
+        "fundingGoal": "$1.5M seed",
+        "tractionSummary": "Three design partners",
+        "revenueSummary": "Pre-revenue",
+        "teamSummary": "Payments operator and infrastructure engineer",
+        "roadmapSummary": "Pilot custody-model review before launch"
+      },
       "createdAt": "2026-06-12T10:00:00.000Z",
       "updatedAt": "2026-06-12T10:00:00.000Z"
     }
@@ -81,8 +107,10 @@ Safe response notes:
 
 - Only the authenticated user's startups are returned.
 - No difficulty field is returned.
-- No raw pitch/problem/solution, private AI analysis, deck review payloads, or
-  owner identifiers are returned.
+- No owner identifiers, private AI analysis, deck review payloads, deck storage
+  keys, private logo storage keys, prompts, or raw provider output are returned.
+- Profile fields are owner/admin-safe startup metadata intended for mobile
+  hydration and review context.
 
 ### `POST /api/startups`
 
@@ -96,19 +124,35 @@ Request:
   "name": "VaultPay",
   "sector": "FinTech",
   "country": "UK",
+  "countryCode": "GB",
+  "city": "London",
   "founderStyle": "Technical",
+  "oneLinePitch": "Compliance-aware wallet infrastructure for marketplaces.",
   "targetCustomer": "marketplace operators",
-  "description": "Optional short company description",
+  "description": "Optional company summary",
   "problem": "Optional investor-readable problem statement, at least 20 chars.",
   "solution": "Optional investor-readable solution statement, at least 20 chars.",
-  "monetizationModel": "Optional business model",
+  "businessModel": "Optional business model",
+  "market": "Optional market summary",
+  "websiteURL": "https://vaultpay.example",
+  "socialLinks": [{ "platform": "github", "url": "https://github.com/example/vaultpay" }],
+  "stage": "prototype",
+  "realLifeStartup": true,
+  "fundingGoal": "$1.5M seed",
   "unfairAdvantage": "Optional founder background",
-  "fundingAsk": 500000
+  "fundingAsk": 500000,
+  "tractionSummary": "Optional traction summary",
+  "revenueSummary": "Optional revenue summary",
+  "teamSummary": "Optional team summary",
+  "roadmapSummary": "Optional roadmap summary"
 }
 ```
 
 The backend maps mobile-friendly sectors and country/region values into the
 existing startup model. Unknown sectors use the safe `Other` fallback.
+`websiteUrl`, `websiteURL`, and social link URLs must be HTTP(S). `countryCode`
+must be a two-letter ISO-style code. See
+`docs/api/startup-profile-sync.md` for the full profile sync contract.
 
 Response:
 
@@ -122,10 +166,22 @@ Response:
     "founderStyle": null,
     "currentMonth": 0,
     "status": "draft",
-    "fundingStage": "idea",
+    "fundingStage": "prototype",
+    "country": "United Kingdom",
+    "countryCode": "GB",
+    "city": "London",
+    "stage": "prototype",
     "cash": 0,
     "monthlyBurn": 0,
     "valuation": 0,
+    "profile": {
+      "companyName": "VaultPay",
+      "oneLinePitch": "Compliance-aware wallet infrastructure for marketplaces.",
+      "description": "Optional company summary",
+      "targetCustomer": "marketplace operators",
+      "websiteUrl": "https://vaultpay.example",
+      "realLifeStartup": true
+    },
     "createdAt": "2026-06-12T10:00:00.000Z",
     "updatedAt": "2026-06-12T10:00:00.000Z"
   }
@@ -136,6 +192,11 @@ Response:
 
 Returns one safe startup view for the owner or configured admin. Non-owners get
 `404`.
+
+Backend-26A stores the richer mobile startup profile on the backend startup.
+Deck generation and VC review jobs automatically use that stored profile as
+private review context when a request omits `startupProfile`; explicit request
+profile fields can override the stored snapshot for that job only.
 
 ### Recommended iOS Startup Flow
 

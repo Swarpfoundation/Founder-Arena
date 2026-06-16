@@ -21,8 +21,10 @@ import {
   parseGeneratedDeckModelOutput,
   parseFirmReviewModelOutput,
   parseInvestorMissionModelOutput,
+  parseStartupProfileFromForm,
   resolveSelectedFirms,
   startupProfileSchema,
+  startupProfileToPromptLines,
   storeDeckPdf,
   validatePdfUpload,
   validateManualPitchText,
@@ -141,6 +143,50 @@ describe("AI investment firm deck review foundation", () => {
     expect(generatedDeckSchema.safeParse(deck).success).toBe(true);
     expect(generatedDeckToReviewText(deck)).toContain("One-line pitch");
     expect(parseGeneratedDeckModelOutput(JSON.stringify(deck))).toMatchObject({ ok: true });
+  });
+
+  it("validates richer startup profile sync fields for review and mission context", () => {
+    const form = new FormData();
+    form.set("startupProfile", JSON.stringify({
+      companyName: "VaultPay",
+      oneLinePitch: "Compliance-aware wallet infrastructure for marketplaces.",
+      city: "London",
+      countryName: "United Kingdom",
+      countryCode: "gb",
+      websiteURL: "https://vaultpay.example",
+      sector: "Fintech",
+      targetCustomer: "marketplace operators",
+      currentStage: "prototype",
+      description: "Wallet infrastructure for marketplaces that may hold customer funds before payouts.",
+      problem: "Marketplace operators need a clearer custody and payout authorization path.",
+      solution: "VaultPay maps fund custody assumptions, KYC ownership, and payout operations.",
+      market: "B2B marketplaces in regulated payment flows",
+      businessModel: "SaaS plus transaction usage fees",
+      unfairAdvantage: "Founder-market fit in payment operations",
+      socialLinks: [{ platform: "github", url: "https://github.com/example/vaultpay" }],
+      realLifeStartup: true,
+      fundingGoal: "$1.5M seed",
+      tractionSummary: "Three design partners",
+      revenueSummary: "Pre-revenue",
+      teamSummary: "Payments operator and infrastructure engineer",
+      roadmapSummary: "Pilot custody-model review before launch",
+    }));
+    const parsedProfile = parseStartupProfileFromForm(form);
+    expect(parsedProfile.ok).toBe(true);
+    if (!parsedProfile.ok) return;
+    const profile = parsedProfile.profile;
+
+    expect(profile.country).toBe("United Kingdom");
+    expect(profile.countryCode).toBe("GB");
+    expect(profile.websiteUrl).toBe("https://vaultpay.example");
+    expect(profile.shortDescription).toContain("Wallet infrastructure");
+
+    const promptLines = startupProfileToPromptLines(profile).join("\n");
+    expect(promptLines).toContain("Problem: Marketplace operators");
+    expect(promptLines).toContain("Solution: VaultPay maps");
+    expect(promptLines).toContain("Social/profile links");
+    expect(promptLines).toContain("Roadmap summary");
+    expect(promptLines).not.toContain("logoUploadKey");
   });
 
   it("evaluates premium or rewarded-credit access for expensive AI actions", () => {

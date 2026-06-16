@@ -192,6 +192,7 @@ model Startup {
   finalScore        Int?
   completedAt       DateTime?
   deathReason       String?
+  profile           Json?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

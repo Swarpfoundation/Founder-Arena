@@ -136,6 +136,15 @@ Inputs:
 - firm review concerns, questions, deal breakers, and milestones
 - aggregate review risks, pitch fixes, and best next milestones
 
+Backend-26A note: when a deck generation or VC review job is created with
+`startupId`, the backend first builds mission/review context from the stored
+startup profile on that startup. Explicit `startupProfile` or `profile.*`
+fields in the request can override the stored snapshot for that job only. This
+lets native iOS-created startups carry profile fields such as problem, solution,
+target customer, country, website, stage, traction summary, revenue summary,
+team summary, and roadmap summary into investor missions without exposing the
+private profile object publicly.
+
 Flow:
 
 1. Firm reviews are generated.

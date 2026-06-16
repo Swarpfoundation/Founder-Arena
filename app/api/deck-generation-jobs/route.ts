@@ -11,9 +11,10 @@ import {
 } from "@/lib/deck-review/access-gate";
 import { getDeckReviewRuntimeConfig } from "@/lib/deck-review/config";
 import { generateDeck } from "@/lib/deck-review/deck-generation";
-import { buildSafeDeckGenerationJobView } from "@/lib/deck-review/generation-service";
+import { buildSafeDeckGenerationJobView, startupProfileJson } from "@/lib/deck-review/generation-service";
 import { GENERATED_DECK_REQUEST_MAX_CHARS } from "@/lib/deck-review/schemas";
-import { parseStartupProfileFromForm, storePrivateLogo } from "@/lib/deck-review/profile";
+import { hasStartupProfileInput, parseStartupProfileFromForm, storePrivateLogo } from "@/lib/deck-review/profile";
+import { buildStoredStartupProfileFromStartup, mergeStartupProfiles } from "@/lib/startups/mobile-api";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -55,7 +56,16 @@ export async function POST(request: NextRequest) {
       description: true,
       problem: true,
       solution: true,
+      monetizationModel: true,
+      status: true,
+      unfairAdvantage: true,
       fundingAsk: true,
+      cash: true,
+      monthlyBurn: true,
+      valuation: true,
+      profile: true,
+      createdAt: true,
+      updatedAt: true,
     },
   });
   if (!startup || startup.userId !== user.id) {
@@ -76,7 +86,11 @@ export async function POST(request: NextRequest) {
   if (!profileResult.ok) {
     return NextResponse.json({ error: profileResult.message, errorCategory: "invalid_profile" }, { status: 400 });
   }
-  const profile = profileResult.profile;
+  const storedProfile = buildStoredStartupProfileFromStartup(startup);
+  const profile = mergeStartupProfiles(
+    storedProfile,
+    hasStartupProfileInput(form) ? profileResult.profile : null
+  ) ?? storedProfile;
 
   const logo = form.get("logo");
   if (logo instanceof File && logo.size > 0) {
@@ -102,7 +116,7 @@ export async function POST(request: NextRequest) {
       startupId,
       status: "generating",
       requestText,
-      startupProfile: profile as unknown as Prisma.InputJsonValue,
+      startupProfile: startupProfileJson(profile),
       provider: config.provider,
       model: config.provider === "deepseek" ? config.model : "mock",
       startedAt: now,

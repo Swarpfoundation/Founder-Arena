@@ -8,13 +8,20 @@ export const LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]
 
 const PROFILE_FORM_FIELDS: Array<keyof StartupProfile> = [
   "companyName",
+  "oneLinePitch",
   "city",
   "country",
+  "countryCode",
   "websiteUrl",
   "sector",
   "targetCustomer",
   "currentStage",
   "shortDescription",
+  "problem",
+  "solution",
+  "market",
+  "businessModel",
+  "unfairAdvantage",
   "realLifeStartup",
   "founderGoal",
   "fundingGoal",
@@ -22,10 +29,20 @@ const PROFILE_FORM_FIELDS: Array<keyof StartupProfile> = [
   "tractionSummary",
   "revenueSummary",
   "teamSummary",
+  "roadmapSummary",
 ];
 
 function stripMarkup(value: string): string {
   return value.replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
+}
+
+export function hasStartupProfileInput(form: FormData): boolean {
+  const json = form.get("startupProfile");
+  if (typeof json === "string" && json.trim().length > 0) return true;
+  for (const field of PROFILE_FORM_FIELDS) {
+    if (form.has(`profile.${field}`)) return true;
+  }
+  return false;
 }
 
 export function parseStartupProfileFromForm(form: FormData): { ok: true; profile: StartupProfile } | { ok: false; message: string } {
@@ -52,6 +69,14 @@ export function parseStartupProfileFromForm(form: FormData): { ok: true; profile
   for (const [key, value] of Object.entries(raw)) {
     if (typeof value === "string") raw[key] = stripMarkup(value);
   }
+  if (typeof raw.description === "string" && !raw.shortDescription) raw.shortDescription = raw.description;
+  if (typeof raw.summary === "string" && !raw.shortDescription) raw.shortDescription = raw.summary;
+  if (typeof raw.websiteURL === "string" && !raw.websiteUrl) raw.websiteUrl = raw.websiteURL;
+  if (typeof raw.countryName === "string" && !raw.country) raw.country = raw.countryName;
+  delete raw.description;
+  delete raw.summary;
+  delete raw.websiteURL;
+  delete raw.countryName;
 
   const parsed = startupProfileSchema.safeParse(raw);
   if (!parsed.success) {
@@ -65,19 +90,31 @@ export function startupProfileToPromptLines(profile: StartupProfile | null | und
   if (!profile) return [];
   const lines: string[] = [];
   if (profile.companyName) lines.push(`- Company name: ${profile.companyName}`);
-  if (profile.city || profile.country) lines.push(`- Location: ${[profile.city, profile.country].filter(Boolean).join(", ")}`);
+  if (profile.oneLinePitch) lines.push(`- One-line pitch: ${profile.oneLinePitch}`);
+  if (profile.city || profile.country || profile.countryCode) {
+    lines.push(`- Location: ${[profile.city, profile.country, profile.countryCode].filter(Boolean).join(", ")}`);
+  }
   if (profile.websiteUrl) lines.push(`- Website: ${profile.websiteUrl}`);
   if (profile.existingProductUrl) lines.push(`- Product URL: ${profile.existingProductUrl}`);
   if (profile.sector) lines.push(`- Profile sector: ${profile.sector}`);
   if (profile.targetCustomer) lines.push(`- Target customer: ${profile.targetCustomer}`);
   if (profile.currentStage) lines.push(`- Current stage: ${profile.currentStage}`);
   if (profile.shortDescription) lines.push(`- Short description: ${profile.shortDescription}`);
+  if (profile.problem) lines.push(`- Problem: ${profile.problem}`);
+  if (profile.solution) lines.push(`- Solution: ${profile.solution}`);
+  if (profile.market) lines.push(`- Market: ${profile.market}`);
+  if (profile.businessModel) lines.push(`- Business model: ${profile.businessModel}`);
+  if (profile.unfairAdvantage) lines.push(`- Unfair advantage: ${profile.unfairAdvantage}`);
+  if (profile.socialLinks.length > 0) {
+    lines.push(`- Social/profile links: ${profile.socialLinks.map((link) => [link.platform, link.url].filter(Boolean).join(": ")).join("; ")}`);
+  }
   if (profile.realLifeStartup) lines.push("- Real-life startup flag: true");
   if (profile.founderGoal) lines.push(`- Founder goal: ${profile.founderGoal}`);
   if (profile.fundingGoal) lines.push(`- Funding goal: ${profile.fundingGoal}`);
   if (profile.tractionSummary) lines.push(`- Traction summary: ${profile.tractionSummary}`);
   if (profile.revenueSummary) lines.push(`- Revenue summary: ${profile.revenueSummary}`);
   if (profile.teamSummary) lines.push(`- Team summary: ${profile.teamSummary}`);
+  if (profile.roadmapSummary) lines.push(`- Roadmap summary: ${profile.roadmapSummary}`);
   if (profile.logoUploadKey) lines.push("- Private logo uploaded: yes");
   return lines;
 }

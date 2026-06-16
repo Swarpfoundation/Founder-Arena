@@ -18,32 +18,62 @@ const optionalProfileText = (max = 300) =>
     z.string().trim().max(max).optional()
   );
 
+const optionalHttpUrl = z.preprocess(
+  (value) => (typeof value === "string" && value.trim().length === 0 ? undefined : value),
+  z.string()
+    .trim()
+    .url()
+    .max(300)
+    .refine((value) => /^https?:\/\//i.test(value), "URL must start with http:// or https://")
+    .optional()
+);
+
+const optionalCountryCode = z.preprocess(
+  (value) => (typeof value === "string" && value.trim().length === 0 ? undefined : value),
+  z.string()
+    .trim()
+    .transform((value) => value.toUpperCase())
+    .refine((value) => /^[A-Z]{2}$/.test(value), "Country code must be a 2-letter ISO code.")
+    .optional()
+);
+
 export const REVIEW_INPUT_TYPES = ["pdf_upload", "manual_pitch", "ai_generated_deck"] as const;
 export type ReviewInputType = (typeof REVIEW_INPUT_TYPES)[number];
 
+export const startupProfileSocialLinkSchema = z.object({
+  platform: optionalProfileText(40),
+  url: optionalHttpUrl,
+}).strict().refine((value) => Boolean(value.url), {
+  message: "Social link URL is required.",
+  path: ["url"],
+});
+
 export const startupProfileSchema = z.object({
   companyName: optionalProfileText(120),
+  oneLinePitch: optionalProfileText(240),
   city: optionalProfileText(80),
   country: optionalProfileText(80),
-  websiteUrl: z.preprocess(
-    (value) => (typeof value === "string" && value.trim().length === 0 ? undefined : value),
-    z.string().trim().url().max(300).optional()
-  ),
+  countryCode: optionalCountryCode,
+  websiteUrl: optionalHttpUrl,
   logoUploadKey: optionalProfileText(240),
   sector: optionalProfileText(80),
   targetCustomer: optionalProfileText(240),
   currentStage: optionalProfileText(80),
   shortDescription: optionalProfileText(600),
+  problem: optionalProfileText(1000),
+  solution: optionalProfileText(1000),
+  market: optionalProfileText(500),
+  businessModel: optionalProfileText(500),
+  unfairAdvantage: optionalProfileText(1000),
+  socialLinks: z.array(startupProfileSocialLinkSchema).max(8).default([]),
   realLifeStartup: z.coerce.boolean().default(false),
   founderGoal: optionalProfileText(300),
   fundingGoal: optionalProfileText(300),
-  existingProductUrl: z.preprocess(
-    (value) => (typeof value === "string" && value.trim().length === 0 ? undefined : value),
-    z.string().trim().url().max(300).optional()
-  ),
+  existingProductUrl: optionalHttpUrl,
   tractionSummary: optionalProfileText(500),
   revenueSummary: optionalProfileText(500),
   teamSummary: optionalProfileText(500),
+  roadmapSummary: optionalProfileText(700),
 }).strict();
 
 export type StartupProfile = z.infer<typeof startupProfileSchema>;

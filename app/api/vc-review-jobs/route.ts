@@ -21,13 +21,15 @@ import {
 } from "@/lib/deck-review/pdf";
 import { MAX_MANUAL_NOTES_CHARS } from "@/lib/deck-review/prompt";
 import { generatedDeckToReviewText } from "@/lib/deck-review/deck-generation";
-import { parseStartupProfileFromForm, storePrivateLogo } from "@/lib/deck-review/profile";
+import { startupProfileJson } from "@/lib/deck-review/generation-service";
+import { hasStartupProfileInput, parseStartupProfileFromForm, storePrivateLogo } from "@/lib/deck-review/profile";
 import {
   generatedDeckSchema,
   validateManualPitchText,
   type GeneratedDeck,
   type ReviewInputType,
 } from "@/lib/deck-review/schemas";
+import { buildStoredStartupProfileFromStartup, mergeStartupProfiles } from "@/lib/startups/mobile-api";
 import {
   auditDeckReview,
   buildSafeDeckReviewJobView,
@@ -97,7 +99,28 @@ export async function POST(request: NextRequest) {
 
   const startup = await db.startup.findUnique({
     where: { id: startupId },
-    select: { id: true, userId: true, sector: true },
+    select: {
+      id: true,
+      userId: true,
+      name: true,
+      description: true,
+      sector: true,
+      region: true,
+      stage: true,
+      targetMarket: true,
+      monetizationModel: true,
+      status: true,
+      problem: true,
+      solution: true,
+      unfairAdvantage: true,
+      fundingAsk: true,
+      cash: true,
+      monthlyBurn: true,
+      valuation: true,
+      profile: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
   if (!startup || startup.userId !== user.id) {
     return NextResponse.json({ error: "Startup not found." }, { status: 404 });
@@ -128,7 +151,11 @@ export async function POST(request: NextRequest) {
   if (!profileResult.ok) {
     return NextResponse.json({ error: profileResult.message, errorCategory: "invalid_profile" }, { status: 400 });
   }
-  const profile = profileResult.profile;
+  const storedProfile = buildStoredStartupProfileFromStartup(startup);
+  const profile = mergeStartupProfiles(
+    storedProfile,
+    hasStartupProfileInput(form) ? profileResult.profile : null
+  ) ?? storedProfile;
   const logo = form.get("logo");
   if (logo instanceof File && logo.size > 0) {
     try {
@@ -218,7 +245,7 @@ export async function POST(request: NextRequest) {
           deckFileName,
           deckSizeBytes,
           manualNotes,
-          startupProfile: profile as unknown as Prisma.InputJsonValue,
+          startupProfile: startupProfileJson(profile),
           selectedFirmIds: firms.map((firm) => firm.id),
           errorCategory: category,
           safeErrorMessage: extraction.error.message,
@@ -276,7 +303,7 @@ export async function POST(request: NextRequest) {
       extractedTextSha256,
       extractedTextTruncated,
       manualNotes,
-      startupProfile: profile as unknown as Prisma.InputJsonValue,
+      startupProfile: startupProfileJson(profile),
       generatedDeck: generatedDeck ? generatedDeck as unknown as Prisma.InputJsonValue : undefined,
       sourceSummary: summarizeInput(inputType, extractedText, generatedDeck),
       selectedFirmIds: firms.map((firm) => firm.id),

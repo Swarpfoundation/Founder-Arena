@@ -58,5 +58,5 @@ export async function getDeckGenerationJobForUser(input: {
 }
 
 export function startupProfileJson(profile: StartupProfile): Prisma.InputJsonValue {
-  return profile as unknown as Prisma.InputJsonValue;
+  return JSON.parse(JSON.stringify(profile)) as Prisma.InputJsonValue;
 }
