@@ -1,8 +1,9 @@
 # Startup Profile Sync API
 
-Backend-26A aligns the backend startup API with the richer native iOS
-`StartupProfile`. The backend stores a private structured profile snapshot on
-each startup and returns only owner/admin-safe fields.
+Backend-26A aligned the backend startup API with the richer native iOS
+`StartupProfile`. Backend-26B adds partial profile updates through
+`PATCH /api/startups/:startupId`. The backend stores a private structured
+profile snapshot on each startup and returns only owner/admin-safe fields.
 
 ## Auth
 
@@ -11,8 +12,9 @@ Startup profile sync requires either:
 - Browser Auth.js session.
 - Mobile bearer token from `/api/mobile-auth/exchange`.
 
-Users can only create, list, and read their own startups. Configured admins may
-read safe startup views. Unauthenticated API clients receive JSON `401`.
+Users can only create, list, read, and update their own startups. Configured
+admins may read/update safe startup views. Unauthenticated API clients receive
+JSON `401`.
 
 ## Stored Profile Fields
 
@@ -150,12 +152,77 @@ startup view shape.
 
 Returns one safe startup view for the owner/admin. Other users receive `404`.
 
+## Update Startup Profile
+
+`PATCH /api/startups/:startupId`
+
+Partial update endpoint for mobile profile sync. Omitted fields are unchanged.
+Empty strings or `null` clear optional profile fields where clearing is safe.
+The response uses the same enriched safe startup view as `GET`.
+
+Allowed request fields:
+
+- `name`
+- `sector`
+- `region`
+- `oneLinePitch` or `pitch`
+- `description` or `summary`
+- `problem`
+- `solution`
+- `targetCustomer`
+- `market`
+- `businessModel` or `monetizationModel`
+- `unfairAdvantage`
+- `websiteUrl` or `websiteURL`
+- `city`
+- `country` or `countryName`
+- `countryCode`
+- `socialLinks`
+- `stage`
+- `realLifeStartup`
+- `fundingGoal`
+- `fundingAsk`
+- `tractionSummary`
+- `revenueSummary`
+- `teamSummary`
+- `roadmapSummary`
+
+Forbidden fields include metrics/status/private/system fields such as `cash`,
+`monthlyBurn`, `valuation`, `status`, `ownerId`, `userId`, `fundingStage`,
+`difficulty`, review payloads, prompts, provider output, storage keys,
+`createdAt`, and `updatedAt`.
+
+Example request:
+
+```json
+{
+  "problem": "Marketplace operators need a clearer custody and payout authorization path before launch.",
+  "solution": "VaultPay maps fund custody assumptions, KYC ownership, and payout operations.",
+  "city": "London",
+  "countryCode": "GB",
+  "roadmapSummary": "Validate authorization assumptions before pilot onboarding."
+}
+```
+
+Safe validation errors include:
+
+- `invalid_website_url`
+- `invalid_social_url`
+- `invalid_country_code`
+- `invalid_stage`
+- `forbidden_field`
+- `invalid_startup_update`
+
 ## Review And Mission Context
 
 When a deck generation or VC review job is created with `startupId`, the backend
 builds review context from the stored startup profile. Explicit
 `startupProfile` or `profile.*` fields in the request can override the stored
 snapshot for that job only.
+
+After `PATCH /api/startups/:startupId`, future deck generation, VC review, and
+mission generation jobs consume the updated stored profile when the request does
+not provide an explicit profile override.
 
 The stored context is private and helps the AI review/missions pipeline see:
 
@@ -194,9 +261,13 @@ Recommended iOS flow:
 3. If no backend startup matches the local run, `POST /api/startups` with the
    local `StartupProfile`.
 4. Cache returned backend `startup.id`.
-5. Use that `startupId` for deck generation and VC review jobs.
-6. Hydrate local profile fields from `startup.profile` when cross-device sync is
+5. When the local profile changes and `startup.id` is known, call
+   `PATCH /api/startups/:startupId` with only changed safe profile fields.
+6. If PATCH fails, keep the local profile and retry later; do not discard local
+   edits.
+7. Use that `startupId` for deck generation and VC review jobs.
+8. Hydrate local profile fields from `startup.profile` when cross-device sync is
    enabled.
 
-`PATCH /api/startups/:startupId` is not implemented in Backend-26A. Profile
-updates can be added in a later sync phase with the same validation rules.
+Logo upload and authenticated logo serving remain deferred. Profile PATCH does
+not accept private logo storage keys from mobile clients.

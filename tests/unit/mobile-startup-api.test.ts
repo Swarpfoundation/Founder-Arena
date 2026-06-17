@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyMobileStartupProfilePatch,
+  buildMobileStartupPatchData,
   buildSafeMobileStartupView,
   buildStoredStartupProfileFromStartup,
   mergeStartupProfiles,
   normalizeMobileStartupInput,
+  normalizeMobileStartupPatchInput,
 } from "@/lib/startups/mobile-api";
 
 describe("mobile startup API helpers", () => {
@@ -196,5 +199,122 @@ describe("mobile startup API helpers", () => {
     });
     expect(merged?.targetCustomer).toBe("enterprise marketplaces");
     expect(merged?.city).toBe("London");
+  });
+
+  it("validates partial startup profile updates strictly", () => {
+    const result = normalizeMobileStartupPatchInput({
+      problem: "Marketplaces need clearer custody and payout responsibility before launch.",
+      solution: "VaultPay maps compliance ownership and payout operations for each marketplace.",
+      countryCode: "gb",
+      socialLinks: [{ platform: "github", url: "https://github.com/example/vaultpay" }],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.countryCode).toBe("GB");
+
+    expect(normalizeMobileStartupPatchInput({
+      websiteUrl: "ftp://vaultpay.example",
+    })).toMatchObject({ ok: false, category: "invalid_website_url" });
+
+    expect(normalizeMobileStartupPatchInput({
+      difficulty: "hard",
+    })).toMatchObject({ ok: false, category: "forbidden_field" });
+  });
+
+  it("applies partial profile updates without erasing omitted fields", () => {
+    const existing = buildStoredStartupProfileFromStartup({
+      id: "startup-1",
+      name: "VaultPay",
+      description: "Legacy description",
+      sector: "Fintech",
+      region: "Europe",
+      stage: "idea",
+      targetMarket: "marketplace operators",
+      monetizationModel: "Subscription",
+      status: "draft",
+      problem: "Legacy problem statement that is long enough for review context.",
+      solution: "Legacy solution statement that is long enough for review context.",
+      unfairAdvantage: "Legacy unfair advantage",
+      fundingAsk: 500_000,
+      cash: 0,
+      monthlyBurn: 0,
+      valuation: 0,
+      profile: {
+        companyName: "VaultPay",
+        city: "London",
+        country: "United Kingdom",
+        websiteUrl: "https://vaultpay.example",
+        problem: "Marketplaces need a custody path.",
+        solution: "VaultPay maps custody responsibilities before launch.",
+        logoUploadKey: "private/logo.png",
+      },
+      createdAt: new Date("2026-06-12T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-12T10:00:00.000Z"),
+    });
+
+    const parsed = normalizeMobileStartupPatchInput({
+      city: "Berlin",
+      websiteUrl: "",
+      roadmapSummary: "Ship the compliance evidence room before pilots.",
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const patched = applyMobileStartupProfilePatch(existing, parsed.data);
+    expect(patched.city).toBe("Berlin");
+    expect(patched.country).toBe("United Kingdom");
+    expect(patched.websiteUrl).toBeUndefined();
+    expect(patched.problem).toBe("Marketplaces need a custody path.");
+    expect(patched.logoUploadKey).toBe("private/logo.png");
+    expect(patched.roadmapSummary).toBe("Ship the compliance evidence room before pilots.");
+  });
+
+  it("builds safe update data without allowing metric/status changes", () => {
+    const startup = {
+      id: "startup-1",
+      name: "VaultPay",
+      tagline: "Wallet infrastructure",
+      description: "Wallet infrastructure for marketplace operators",
+      sector: "Fintech",
+      region: "Europe",
+      stage: "idea",
+      targetMarket: "marketplace operators",
+      monetizationModel: "Subscription",
+      status: "draft",
+      problem: "Marketplace operators need a clear way to manage payout and custody risk.",
+      solution: "VaultPay maps payment operations into a compliance-aware workflow.",
+      unfairAdvantage: "Payments founder-market fit",
+      fundingAsk: 500_000,
+      cash: 0,
+      monthlyBurn: 0,
+      valuation: 0,
+      profile: null,
+      createdAt: new Date("2026-06-12T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-12T10:00:00.000Z"),
+    };
+    const parsed = normalizeMobileStartupPatchInput({
+      name: "VaultPay EU",
+      sector: "fintech",
+      country: "United Kingdom",
+      stage: "mvp",
+      targetCustomer: "regulated marketplaces",
+      fundingAsk: 1_500_000,
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const data = buildMobileStartupPatchData(startup, parsed.data);
+    expect(data).toMatchObject({
+      name: "VaultPay EU",
+      sector: "Fintech",
+      region: "Europe",
+      stage: "mvp",
+      targetMarket: "regulated marketplaces",
+      fundingAsk: 1_500_000,
+    });
+    expect(JSON.stringify(data)).not.toContain("cash");
+    expect(JSON.stringify(data)).not.toContain("valuation");
+    expect(JSON.stringify(data)).not.toContain("status");
   });
 });

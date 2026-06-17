@@ -78,6 +78,50 @@ const optionalCountryCode = z.preprocess(
     .optional()
 );
 
+const nullablePatchText = (max: number) =>
+  z.preprocess(
+    (value) => {
+      if (value === null) return null;
+      if (typeof value === "string" && value.trim().length === 0) return null;
+      return value;
+    },
+    z.string().trim().max(max).nullable().optional()
+  );
+
+const nullablePatchHttpUrl = z.preprocess(
+  (value) => {
+    if (value === null) return null;
+    if (typeof value === "string" && value.trim().length === 0) return null;
+    return value;
+  },
+  z.string()
+    .trim()
+    .url()
+    .max(300)
+    .refine((value) => /^https?:\/\//i.test(value), "URL must start with http:// or https://")
+    .nullable()
+    .optional()
+);
+
+const nullablePatchCountryCode = z.preprocess(
+  (value) => {
+    if (value === null) return null;
+    if (typeof value === "string" && value.trim().length === 0) return null;
+    return value;
+  },
+  z.string()
+    .trim()
+    .transform((value) => value.toUpperCase())
+    .refine((value) => /^[A-Z]{2}$/.test(value), "Country code must be a 2-letter ISO code.")
+    .nullable()
+    .optional()
+);
+
+const nullablePatchSocialLinks = z.preprocess(
+  (value) => value === null ? null : value,
+  z.array(startupProfileSocialLinkSchema).max(8).nullable().optional()
+);
+
 export const mobileStartupCreateSchema = z.object({
   name: z.string().min(2).max(80),
   sector: z.string().min(1).max(80),
@@ -109,6 +153,38 @@ export const mobileStartupCreateSchema = z.object({
   teamSummary: optionalTrimmedText(500),
   roadmapSummary: optionalTrimmedText(700),
 });
+
+export const mobileStartupPatchSchema = z.object({
+  name: nullablePatchText(80),
+  sector: nullablePatchText(80),
+  region: nullablePatchText(80),
+  country: nullablePatchText(80),
+  countryName: nullablePatchText(80),
+  countryCode: nullablePatchCountryCode,
+  city: nullablePatchText(80),
+  stage: z.enum(MOBILE_STARTUP_STAGES).nullable().optional(),
+  oneLinePitch: nullablePatchText(240),
+  pitch: nullablePatchText(240),
+  description: nullablePatchText(600),
+  summary: nullablePatchText(600),
+  targetCustomer: nullablePatchText(240),
+  problem: nullablePatchText(1000),
+  solution: nullablePatchText(1000),
+  market: nullablePatchText(500),
+  businessModel: nullablePatchText(500),
+  monetizationModel: nullablePatchText(500),
+  unfairAdvantage: nullablePatchText(1000),
+  websiteUrl: nullablePatchHttpUrl,
+  websiteURL: nullablePatchHttpUrl,
+  socialLinks: nullablePatchSocialLinks,
+  realLifeStartup: z.boolean().nullable().optional(),
+  fundingGoal: nullablePatchText(300),
+  fundingAsk: z.coerce.number().min(25000).max(10000000).nullable().optional(),
+  tractionSummary: nullablePatchText(500),
+  revenueSummary: nullablePatchText(500),
+  teamSummary: nullablePatchText(500),
+  roadmapSummary: nullablePatchText(700),
+}).strict();
 
 type StartupForSafeView = {
   id: string;
@@ -304,6 +380,144 @@ export function normalizeMobileStartupInput(raw: unknown): { ok: true; data: Cre
   return { ok: true, data: { ...validated.data, stage: input.stage ?? "idea" }, profile };
 }
 
+export type MobileStartupPatchInput = z.infer<typeof mobileStartupPatchSchema>;
+
+function issueCategory(issue: z.ZodIssue): string {
+  const field = String(issue.path[0] ?? "");
+  if (issue.code === "unrecognized_keys") return "forbidden_field";
+  if (field === "websiteUrl" || field === "websiteURL") return "invalid_website_url";
+  if (field === "socialLinks") return "invalid_social_url";
+  if (field === "countryCode") return "invalid_country_code";
+  if (field === "stage") return "invalid_stage";
+  return "invalid_startup_update";
+}
+
+function formatPatchIssues(error: z.ZodError): { category: string; details: string[] } {
+  const first = error.issues[0];
+  return {
+    category: first ? issueCategory(first) : "invalid_startup_update",
+    details: error.issues.map((issue) => {
+      if (issue.code === "unrecognized_keys") return `Forbidden field: ${issue.keys.join(", ")}`;
+      return issue.message;
+    }),
+  };
+}
+
+export function normalizeMobileStartupPatchInput(raw: unknown):
+  | { ok: true; data: MobileStartupPatchInput }
+  | { ok: false; category: string; errors: string[] } {
+  const parsed = mobileStartupPatchSchema.safeParse(raw);
+  if (!parsed.success) {
+    const formatted = formatPatchIssues(parsed.error);
+    return { ok: false, category: formatted.category, errors: formatted.details };
+  }
+  return { ok: true, data: parsed.data };
+}
+
+function assignProfilePatch(target: Record<string, unknown>, key: keyof StartupProfile, value: unknown) {
+  if (value === undefined) return;
+  if (value === null) {
+    delete target[key];
+    return;
+  }
+  target[key] = typeof value === "string" ? stripMarkup(value) : value;
+}
+
+function firstPatchValue(...values: unknown[]): unknown {
+  return values.find((value) => value !== undefined);
+}
+
+export function applyMobileStartupProfilePatch(
+  existingProfile: StartupProfile | null | undefined,
+  patch: MobileStartupPatchInput
+): StartupProfile {
+  const next: Record<string, unknown> = { ...(existingProfile ?? {}) };
+
+  assignProfilePatch(next, "companyName", patch.name);
+  assignProfilePatch(next, "sector", patch.sector);
+  assignProfilePatch(next, "city", patch.city);
+  assignProfilePatch(next, "country", firstPatchValue(patch.country, patch.countryName));
+  assignProfilePatch(next, "countryCode", patch.countryCode);
+  assignProfilePatch(next, "currentStage", patch.stage);
+  assignProfilePatch(next, "oneLinePitch", firstPatchValue(patch.oneLinePitch, patch.pitch));
+  assignProfilePatch(next, "shortDescription", firstPatchValue(patch.description, patch.summary));
+  assignProfilePatch(next, "targetCustomer", patch.targetCustomer);
+  assignProfilePatch(next, "problem", patch.problem);
+  assignProfilePatch(next, "solution", patch.solution);
+  assignProfilePatch(next, "market", patch.market);
+  assignProfilePatch(next, "businessModel", firstPatchValue(patch.businessModel, patch.monetizationModel));
+  assignProfilePatch(next, "unfairAdvantage", patch.unfairAdvantage);
+  assignProfilePatch(next, "websiteUrl", firstPatchValue(patch.websiteUrl, patch.websiteURL));
+  assignProfilePatch(next, "socialLinks", patch.socialLinks);
+  assignProfilePatch(next, "realLifeStartup", patch.realLifeStartup);
+  assignProfilePatch(
+    next,
+    "fundingGoal",
+    firstPatchValue(patch.fundingGoal, typeof patch.fundingAsk === "number" ? formatFundingAsk(patch.fundingAsk) : undefined)
+  );
+  assignProfilePatch(next, "tractionSummary", patch.tractionSummary);
+  assignProfilePatch(next, "revenueSummary", patch.revenueSummary);
+  assignProfilePatch(next, "teamSummary", patch.teamSummary);
+  assignProfilePatch(next, "roadmapSummary", patch.roadmapSummary);
+
+  return startupProfileSchema.parse(next);
+}
+
+export function buildMobileStartupPatchData(
+  startup: StartupForSafeView,
+  patch: MobileStartupPatchInput
+): Prisma.StartupUpdateInput {
+  const profile = applyMobileStartupProfilePatch(buildStoredStartupProfileFromStartup(startup), patch);
+  const data: Prisma.StartupUpdateInput = {};
+
+  if (patch.name !== undefined && patch.name !== null) {
+    data.name = stripMarkup(patch.name);
+    profile.companyName = String(data.name);
+  }
+  if (patch.sector !== undefined && patch.sector !== null) {
+    data.sector = normalizeSector(patch.sector);
+    profile.sector = String(data.sector);
+  }
+  if (patch.region !== undefined && patch.region !== null) {
+    data.region = normalizeRegion({ region: patch.region });
+  } else if ((patch.country !== undefined && patch.country !== null) || (patch.countryName !== undefined && patch.countryName !== null)) {
+    data.region = normalizeRegion({ country: String(firstPatchValue(patch.country, patch.countryName) ?? "") });
+  }
+  if (patch.stage !== undefined && patch.stage !== null) {
+    data.stage = patch.stage;
+    profile.currentStage = patch.stage;
+  }
+  if (patch.oneLinePitch !== undefined || patch.pitch !== undefined || patch.description !== undefined || patch.summary !== undefined) {
+    const description = patch.oneLinePitch ?? patch.pitch ?? patch.description ?? patch.summary;
+    if (typeof description === "string" && description.trim().length > 0) {
+      const safeDescription = truncate(stripMarkup(description), 180);
+      data.description = safeDescription;
+      data.tagline = safeDescription;
+    }
+  }
+  if (patch.targetCustomer !== undefined && patch.targetCustomer !== null) {
+    data.targetMarket = stripMarkup(patch.targetCustomer);
+  }
+  if (patch.problem !== undefined && patch.problem !== null) {
+    data.problem = stripMarkup(patch.problem);
+  }
+  if (patch.solution !== undefined && patch.solution !== null) {
+    data.solution = stripMarkup(patch.solution);
+  }
+  if ((patch.businessModel !== undefined && patch.businessModel !== null) || (patch.monetizationModel !== undefined && patch.monetizationModel !== null)) {
+    data.monetizationModel = stripMarkup(String(firstPatchValue(patch.businessModel, patch.monetizationModel) ?? ""));
+  }
+  if (patch.unfairAdvantage !== undefined && patch.unfairAdvantage !== null) {
+    data.unfairAdvantage = stripMarkup(patch.unfairAdvantage);
+  }
+  if (patch.fundingAsk !== undefined && patch.fundingAsk !== null) {
+    data.fundingAsk = Math.round(patch.fundingAsk);
+  }
+
+  data.profile = JSON.parse(JSON.stringify(profile)) as Prisma.InputJsonValue;
+  return data;
+}
+
 export function buildSafeMobileStartupView(startup: StartupForSafeView) {
   const currentMonth = startup.simulationMonths?.length
     ? Math.max(...startup.simulationMonths.map((month) => month.monthNumber))
@@ -459,4 +673,85 @@ export async function getMobileStartupForUser(input: {
   });
   if (!startup || (!input.isAdmin && startup.userId !== input.userId)) return null;
   return buildSafeMobileStartupView(startup);
+}
+
+export async function updateMobileStartupForUser(input: {
+  userId: string;
+  startupId: string;
+  isAdmin?: boolean;
+  body: unknown;
+}): Promise<
+  | { ok: true; startup: SafeMobileStartupView }
+  | { ok: false; status: number; error: string; errorCategory?: string; details?: string[] }
+> {
+  const normalized = normalizeMobileStartupPatchInput(input.body);
+  if (!normalized.ok) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Invalid startup update.",
+      errorCategory: normalized.category,
+      details: normalized.errors,
+    };
+  }
+
+  const startup = await db.startup.findUnique({
+    where: { id: input.startupId },
+    select: {
+      id: true,
+      userId: true,
+      name: true,
+      tagline: true,
+      description: true,
+      sector: true,
+      region: true,
+      stage: true,
+      targetMarket: true,
+      monetizationModel: true,
+      status: true,
+      problem: true,
+      solution: true,
+      unfairAdvantage: true,
+      fundingAsk: true,
+      cash: true,
+      monthlyBurn: true,
+      valuation: true,
+      profile: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+  if (!startup || (!input.isAdmin && startup.userId !== input.userId)) {
+    return { ok: false, status: 404, error: "Startup not found." };
+  }
+
+  const updated = await db.startup.update({
+    where: { id: input.startupId },
+    data: buildMobileStartupPatchData(startup, normalized.data),
+    select: {
+      id: true,
+      name: true,
+      tagline: true,
+      description: true,
+      sector: true,
+      region: true,
+      stage: true,
+      targetMarket: true,
+      monetizationModel: true,
+      status: true,
+      problem: true,
+      solution: true,
+      unfairAdvantage: true,
+      fundingAsk: true,
+      cash: true,
+      monthlyBurn: true,
+      valuation: true,
+      profile: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: { select: { simulationMonths: true } },
+    },
+  });
+
+  return { ok: true, startup: buildSafeMobileStartupView(updated) };
 }

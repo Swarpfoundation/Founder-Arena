@@ -198,6 +198,34 @@ Deck generation and VC review jobs automatically use that stored profile as
 private review context when a request omits `startupProfile`; explicit request
 profile fields can override the stored snapshot for that job only.
 
+### `PATCH /api/startups/:startupId`
+
+Updates safe startup/profile fields for the owner or configured admin. Mobile
+clients should use this after a local `StartupProfile` edit when they already
+have a backend `startup.id`.
+
+Request is partial; omitted fields are unchanged:
+
+```json
+{
+  "oneLinePitch": "Compliance-aware wallet infrastructure for marketplaces.",
+  "problem": "Marketplace operators need a clearer custody and payout authorization path before launch.",
+  "solution": "VaultPay maps fund custody assumptions, KYC ownership, and payout operations.",
+  "city": "London",
+  "country": "United Kingdom",
+  "countryCode": "GB",
+  "websiteUrl": "https://vaultpay.example",
+  "socialLinks": [{ "platform": "github", "url": "https://github.com/example/vaultpay" }],
+  "roadmapSummary": "Validate authorization assumptions before pilot onboarding."
+}
+```
+
+Response is the same safe startup view shape as `GET /api/startups/:startupId`.
+The endpoint rejects unknown/forbidden fields such as `cash`, `valuation`,
+`status`, `ownerId`, `userId`, `difficulty`, review payloads, prompts, provider
+output, storage keys, and timestamps. Empty strings or `null` clear optional
+profile fields where safe. Logo upload/serving remains deferred.
+
 ### Recommended iOS Startup Flow
 
 1. Login through mobile auth.
@@ -205,7 +233,10 @@ profile fields can override the stored snapshot for that job only.
 3. Call `GET /api/startups`.
 4. If no backend startup exists for the current local run, call
    `POST /api/startups`.
-5. Use the returned backend `startup.id` as `startupId` when creating
+5. If a backend startup exists and local profile fields changed, call
+   `PATCH /api/startups/:startupId` with the changed safe fields. If PATCH
+   fails, keep local edits and retry later.
+6. Use the returned backend `startup.id` as `startupId` when creating
    deck-generation and VC review jobs.
 
 ### `GET /api/vc-review-firms`
