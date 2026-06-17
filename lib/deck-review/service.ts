@@ -15,9 +15,11 @@ import {
   generatedDeckSchema,
   investorMissionRoadmapSummarySchema,
   investorMissionSchema,
+  structuredPitchDeckSchema,
   type InvestorMission,
   type InvestorMissionRoadmapSummary,
   type MissionGenerationStatus,
+  type StructuredPitchDeckSummary,
   startupProfileSchema,
   type AggregateReview,
   type DeckReviewErrorCategory,
@@ -26,6 +28,7 @@ import {
   type ReviewInputType,
   type StartupProfile,
 } from "./schemas";
+import { buildStructuredPitchDeckSummary } from "./structured-deck";
 
 /**
  * Deck review job lifecycle. Status flow:
@@ -68,6 +71,7 @@ export interface SafeDeckReviewJobView {
   completedAt: string | null;
   firmReviews: SafeFirmReviewView[] | null;
   aggregateReview: AggregateReview | null;
+  deckSummary: StructuredPitchDeckSummary | null;
 }
 
 function parseStatus(value: string): DeckReviewJobStatus {
@@ -87,6 +91,7 @@ function parseInputType(value: string): ReviewInputType {
   switch (value) {
     case "manual_pitch":
     case "ai_generated_deck":
+    case "structured_pitch_deck":
     case "pdf_upload":
       return value;
     default:
@@ -134,6 +139,12 @@ function parseStoredGeneratedDeck(value: Prisma.JsonValue | null) {
   return parsed.success ? parsed.data : null;
 }
 
+function parseStoredStructuredDeck(value: Prisma.JsonValue | null) {
+  if (!value || typeof value !== "object") return null;
+  const parsed = structuredPitchDeckSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
 function parseStoredInvestorMissions(value: Prisma.JsonValue | null): InvestorMission[] | null {
   if (!Array.isArray(value)) return null;
   const missions: InvestorMission[] = [];
@@ -162,6 +173,7 @@ export function buildSafeDeckReviewJobView(job: DeckReviewJobRecord): SafeDeckRe
   const missions = completed && missionGenerationStatus === "completed"
     ? parseStoredInvestorMissions(job.investorMissions)
     : null;
+  const structuredDeck = parseStoredStructuredDeck(job.structuredDeck);
 
   return {
     jobId: job.id,
@@ -188,6 +200,7 @@ export function buildSafeDeckReviewJobView(job: DeckReviewJobRecord): SafeDeckRe
     completedAt: job.completedAt?.toISOString() ?? null,
     firmReviews: completed ? parseStoredFirmReviews(job.firmReviews) : null,
     aggregateReview: completed ? parseStoredAggregate(job.aggregateReview) : null,
+    deckSummary: structuredDeck ? buildStructuredPitchDeckSummary(structuredDeck) : null,
   };
 }
 

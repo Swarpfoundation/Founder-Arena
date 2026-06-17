@@ -37,7 +37,7 @@ const optionalCountryCode = z.preprocess(
     .optional()
 );
 
-export const REVIEW_INPUT_TYPES = ["pdf_upload", "manual_pitch", "ai_generated_deck"] as const;
+export const REVIEW_INPUT_TYPES = ["pdf_upload", "manual_pitch", "ai_generated_deck", "structured_pitch_deck"] as const;
 export type ReviewInputType = (typeof REVIEW_INPUT_TYPES)[number];
 
 export const startupProfileSocialLinkSchema = z.object({
@@ -96,6 +96,65 @@ export const generatedDeckSchema = z.object({
 });
 
 export type GeneratedDeck = z.infer<typeof generatedDeckSchema>;
+
+export const STRUCTURED_DECK_SECTION_KINDS = [
+  "title",
+  "problem",
+  "solution",
+  "product",
+  "market",
+  "targetCustomer",
+  "businessModel",
+  "traction",
+  "goToMarket",
+  "competition",
+  "team",
+  "fundingAsk",
+  "roadmap",
+] as const;
+export type StructuredDeckSectionKind = (typeof STRUCTURED_DECK_SECTION_KINDS)[number];
+
+export const STRUCTURED_DECK_EVIDENCE_LEVELS = ["missing", "weak", "adequate", "strong"] as const;
+export type StructuredDeckEvidenceLevel = (typeof STRUCTURED_DECK_EVIDENCE_LEVELS)[number];
+
+export const structuredDeckSectionSchema = z.object({
+  kind: z.enum(STRUCTURED_DECK_SECTION_KINDS),
+  headline: z.string().trim().max(240).default(""),
+  bullets: z.array(z.string().trim().min(1).max(260)).max(8).default([]),
+  speakerNote: z.string().trim().max(1_200).default(""),
+  evidenceLevel: z.enum(STRUCTURED_DECK_EVIDENCE_LEVELS).default("missing"),
+}).strict().superRefine((section, ctx) => {
+  if (!section.headline && section.bullets.length === 0 && !section.speakerNote) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Deck section must include a headline, bullet, or speaker note.",
+    });
+  }
+});
+
+export const structuredPitchDeckSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  oneLinePitch: z.string().trim().max(280).default(""),
+  sections: z.array(structuredDeckSectionSchema).min(1).max(20),
+  notes: z.string().trim().max(2_000).default(""),
+}).strict();
+
+export type StructuredPitchDeck = z.infer<typeof structuredPitchDeckSchema>;
+
+export const structuredPitchDeckSummarySchema = z.object({
+  title: z.string(),
+  oneLinePitch: z.string().nullable(),
+  sectionCount: z.number().int().nonnegative(),
+  sectionKinds: z.array(z.enum(STRUCTURED_DECK_SECTION_KINDS)),
+  evidenceSummary: z.object({
+    missing: z.number().int().nonnegative(),
+    weak: z.number().int().nonnegative(),
+    adequate: z.number().int().nonnegative(),
+    strong: z.number().int().nonnegative(),
+  }),
+});
+
+export type StructuredPitchDeckSummary = z.infer<typeof structuredPitchDeckSummarySchema>;
 
 export function parseGeneratedDeckModelOutput(rawText: string):
   | { ok: true; value: GeneratedDeck }

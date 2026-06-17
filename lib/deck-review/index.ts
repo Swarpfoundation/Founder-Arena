@@ -6,6 +6,7 @@ export * from "./pdf";
 export * from "./config";
 export * from "./profile";
 export * from "./deck-generation";
+export * from "./structured-deck";
 export * from "./access-gate";
 export * from "./generation-service";
 export * from "./provider";

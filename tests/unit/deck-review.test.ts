@@ -26,6 +26,8 @@ import {
   startupProfileSchema,
   startupProfileToPromptLines,
   storeDeckPdf,
+  structuredPitchDeckSchema,
+  structuredPitchDeckToReviewText,
   validatePdfUpload,
   validateManualPitchText,
   type FirmReview,
@@ -68,6 +70,37 @@ function sampleFirmReview(overrides: Partial<FirmReview> = {}): FirmReview {
     durationMs: 0,
     repaired: false,
     ...overrides,
+  });
+}
+
+function sampleStructuredDeck() {
+  return structuredPitchDeckSchema.parse({
+    title: "VaultPay Investor Dossier",
+    oneLinePitch: "Compliance-aware wallet operations for marketplaces.",
+    sections: [
+      {
+        kind: "problem",
+        headline: "Marketplaces struggle with fund custody assumptions.",
+        bullets: ["Operators need to clarify payout responsibility", "KYC/AML ownership is often unclear"],
+        speakerNote: "The risk is strongest in launches that touch customer funds.",
+        evidenceLevel: "adequate",
+      },
+      {
+        kind: "solution",
+        headline: "VaultPay maps custody, payout, and compliance operations.",
+        bullets: ["Partner-led wallet workflow", "Operational controls for payout review"],
+        speakerNote: "The current model still needs qualified compliance review.",
+        evidenceLevel: "weak",
+      },
+      {
+        kind: "fundingAsk",
+        headline: "$1.5M seed to validate pilots and compliance assumptions.",
+        bullets: ["Build beta", "Run pilot", "Prepare diligence packet"],
+        speakerNote: "Use of funds is directional, not a real offer.",
+        evidenceLevel: "weak",
+      },
+    ],
+    notes: "Founder-authored draft from the in-game deck builder.",
   });
 }
 
@@ -143,6 +176,33 @@ describe("AI investment firm deck review foundation", () => {
     expect(generatedDeckSchema.safeParse(deck).success).toBe(true);
     expect(generatedDeckToReviewText(deck)).toContain("One-line pitch");
     expect(parseGeneratedDeckModelOutput(JSON.stringify(deck))).toMatchObject({ ok: true });
+  });
+
+  it("validates structured pitch deck drafts and converts them to ordered private review evidence", () => {
+    const deck = sampleStructuredDeck();
+    expect(structuredPitchDeckSchema.safeParse(deck).success).toBe(true);
+
+    const text = structuredPitchDeckToReviewText(deck);
+    expect(text).toContain("Structured pitch deck title: VaultPay Investor Dossier");
+    expect(text).toContain("Section 1: Problem");
+    expect(text).toContain("Evidence level: weak");
+    expect(text).toContain("Speaker note: The current model still needs qualified compliance review.");
+
+    expect(structuredPitchDeckSchema.safeParse({
+      title: "Invalid",
+      sections: [{ kind: "wire_money", headline: "Bad", evidenceLevel: "strong" }],
+    }).success).toBe(false);
+    expect(structuredPitchDeckSchema.safeParse({
+      title: "Too many bullets",
+      sections: [
+        {
+          kind: "problem",
+          headline: "Problem",
+          bullets: Array.from({ length: 9 }, (_, index) => `bullet ${index}`),
+          evidenceLevel: "adequate",
+        },
+      ],
+    }).success).toBe(false);
   });
 
   it("validates richer startup profile sync fields for review and mission context", () => {
@@ -471,6 +531,23 @@ describe("AI investment firm deck review foundation", () => {
     expect(prompt.user).toContain("return JSON exactly in this shape");
   });
 
+  it("builds structured deck prompts with section labels and evidence-level guidance", () => {
+    const firm = INVESTMENT_FIRMS.find((item) => item.id === "fintrust_capital") ?? INVESTMENT_FIRMS[0];
+    const deckText = structuredPitchDeckToReviewText(sampleStructuredDeck());
+    const prompt = buildFirmReviewPrompt({
+      firm,
+      deckText,
+      reviewInputType: "structured_pitch_deck",
+      startup: { name: "VaultPay", sector: "fintech", stage: "seed", region: "UK", fundingAsk: 1500000 },
+    });
+
+    expect(prompt.system).toContain("missing/weak section evidence");
+    expect(prompt.user).toContain("Review input type: structured_pitch_deck");
+    expect(prompt.user).toContain("Structured pitch deck draft");
+    expect(prompt.user).toContain("Section 1: Problem");
+    expect(prompt.user).toContain("Evidence level: weak");
+  });
+
   it("computes aggregate market verdicts deterministically from validated firm reviews", () => {
     const aggregate = aggregateFirmReviews([
       sampleFirmReview({ firmId: "marketproof_partners", decision: "term_sheet_ready", score: 82, sectorFit: 88 }),
@@ -531,6 +608,20 @@ describe("AI investment firm deck review foundation", () => {
         missingInfo: [],
         qualityScore: 50,
       },
+      structuredDeck: {
+        title: "PRIVATE STRUCTURED DECK",
+        oneLinePitch: "PRIVATE STRUCTURED PITCH",
+        sections: [
+          {
+            kind: "problem",
+            headline: "PRIVATE STRUCTURED HEADLINE",
+            bullets: ["PRIVATE STRUCTURED BULLET"],
+            speakerNote: "PRIVATE STRUCTURED SPEAKER NOTE",
+            evidenceLevel: "weak",
+          },
+        ],
+        notes: "PRIVATE STRUCTURED NOTES",
+      },
       sourceSummary: "PDF deck · 1000 extracted chars",
       accessConsumedAt: new Date("2026-06-11T00:00:30.000Z"),
       accessUsedCredit: true,
@@ -581,8 +672,51 @@ describe("AI investment firm deck review foundation", () => {
     expect(serialized).not.toContain("PRIVATE COMPANY");
     expect(serialized).not.toContain("private-logo");
     expect(serialized).not.toContain("PRIVATE GENERATED DECK");
+    expect(serialized).not.toContain("PRIVATE STRUCTURED HEADLINE");
+    expect(serialized).not.toContain("PRIVATE STRUCTURED BULLET");
+    expect(serialized).not.toContain("PRIVATE STRUCTURED SPEAKER NOTE");
+    expect(serialized).not.toContain("PRIVATE STRUCTURED NOTES");
     expect(serialized.toLowerCase()).not.toContain("prompt");
     expect(serialized).toContain("PRIVATE GENERATED MISSION SAFE SUMMARY");
+    expect(safe.deckSummary).toEqual({
+      title: "PRIVATE STRUCTURED DECK",
+      oneLinePitch: "PRIVATE STRUCTURED PITCH",
+      sectionCount: 1,
+      sectionKinds: ["problem"],
+      evidenceSummary: { missing: 0, weak: 1, adequate: 0, strong: 0 },
+    });
     expect(safe.missionCount).toBe(1);
+  });
+
+  it("runs a mock structured pitch deck review and mission smoke", () => {
+    const profile = startupProfileSchema.parse({
+      companyName: "VaultPay",
+      city: "London",
+      country: "UK",
+      sector: "fintech payments",
+      targetCustomer: "marketplaces that hold customer funds",
+      currentStage: "seed",
+      shortDescription: "Wallet infrastructure for marketplaces that may hold customer funds before payouts.",
+    });
+    const deckText = structuredPitchDeckToReviewText(sampleStructuredDeck());
+    const firms = INVESTMENT_FIRMS.filter((firm) => ["fintrust_capital", "marketproof_partners", "novaedge_ai_ventures"].includes(firm.id));
+    const firmReviews = firms.map((firm) => generateMockFirmReview({ firm, deckText }));
+    const aggregate = aggregateFirmReviews(firmReviews);
+    const missions = generateMockInvestorMissions({
+      reviewInputType: "structured_pitch_deck",
+      deckText,
+      startup: { name: "VaultPay", sector: "fintech", stage: "seed", region: "UK", fundingAsk: 1_500_000 },
+      startupProfile: profile,
+      selectedFirms: firms,
+      firmReviews,
+      aggregateReview: aggregate,
+    });
+
+    expect(firmReviews.length).toBe(3);
+    expect(aggregate.overallDecision).toBeTruthy();
+    expect(investorMissionOutputSchema.safeParse(missions).success).toBe(true);
+    expect(missions.missions.length).toBeGreaterThanOrEqual(3);
+    expect(JSON.stringify(missions).toLowerCase()).toContain("clarify");
+    expect(JSON.stringify(missions).toLowerCase()).not.toContain("guaranteed funding");
   });
 });

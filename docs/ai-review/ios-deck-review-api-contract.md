@@ -278,7 +278,7 @@ Response:
 
 ### `POST /api/vc-review-jobs`
 
-Creates a private review job from one of three input modes and starts firm review.
+Creates a private review job from one of four input modes and starts firm review.
 
 Request:
 
@@ -286,10 +286,11 @@ Request:
 - Content type: `multipart/form-data`
 - Fields:
   - `startupId`: required string.
-  - `inputType`: `pdf_upload`, `manual_pitch`, or `ai_generated_deck`.
+  - `inputType`: `pdf_upload`, `manual_pitch`, `ai_generated_deck`, or `structured_pitch_deck`.
   - `deck`: required for `pdf_upload`.
   - `pitchText`: required for `manual_pitch`.
   - `generatedDeckJobId`: required for `ai_generated_deck`.
+  - `structuredDeck`: required JSON string for `structured_pitch_deck`.
   - `manualNotes`: optional string, max 2,000 characters after trimming.
   - `firmIds`: optional comma-separated firm IDs. Omit for auto-selection.
   - `startupProfile` JSON object or `profile.<field>` multipart fields.
@@ -304,7 +305,58 @@ Upload limits:
 - Minimum readable text: 200 characters.
 - OCR is not supported. Scanned or image-only PDFs fail safely.
 - Manual pitch text: minimum 300 characters, max 30,000 characters.
+- Structured pitch deck:
+  - `title`: required, max 160 characters.
+  - `oneLinePitch`: optional, max 280 characters.
+  - `notes`: optional, max 2,000 characters.
+  - `sections`: required, 1-20 sections.
+  - each section uses one of:
+    `title`, `problem`, `solution`, `product`, `market`, `targetCustomer`,
+    `businessModel`, `traction`, `goToMarket`, `competition`, `team`,
+    `fundingAsk`, `roadmap`.
+  - each section has `headline` max 240 characters, up to 8 bullets of max
+    260 characters each, `speakerNote` max 1,200 characters, and
+    `evidenceLevel`: `missing`, `weak`, `adequate`, or `strong`.
 - Startup logo: max 2 MB; stored privately.
+
+JSON clients may also submit `structured_pitch_deck` as `application/json`:
+
+```json
+{
+  "inputType": "structured_pitch_deck",
+  "startupId": "clx_startup_id",
+  "selectedFirmIds": ["fintrust_capital", "marketproof_partners"],
+  "startupProfile": {
+    "companyName": "VaultPay",
+    "sector": "fintech payments"
+  },
+  "structuredDeck": {
+    "title": "VaultPay Investor Dossier",
+    "oneLinePitch": "Compliance-aware wallet operations for marketplaces.",
+    "sections": [
+      {
+        "kind": "problem",
+        "headline": "Marketplaces struggle with fund custody assumptions.",
+        "bullets": ["Payout responsibility is unclear", "KYC/AML ownership needs definition"],
+        "speakerNote": "This is a founder-authored draft section.",
+        "evidenceLevel": "weak"
+      }
+    ],
+    "notes": "Draft from the in-game pitch deck builder."
+  }
+}
+```
+
+iOS `PitchDeckDraft` maps directly:
+
+- `title` → `structuredDeck.title`
+- `oneLinePitch` → `structuredDeck.oneLinePitch`
+- `sections[].kind` → `structuredDeck.sections[].kind`
+- `sections[].headline` → `structuredDeck.sections[].headline`
+- `sections[].bullets` → `structuredDeck.sections[].bullets`
+- `sections[].speakerNote` → `structuredDeck.sections[].speakerNote`
+- `sections[].evidenceLevel` → `structuredDeck.sections[].evidenceLevel`
+- `notes` → `structuredDeck.notes`
 
 Response:
 
@@ -325,6 +377,7 @@ Accepted response shape:
     "deckFileName": "pitch.pdf",
     "deckPageCount": 1,
     "sourceSummary": "PDF deck · 12000 extracted chars",
+    "deckSummary": null,
     "accessUsedCredit": false,
     "provider": null,
     "model": null,
@@ -341,6 +394,26 @@ Accepted response shape:
     "completedAt": null,
     "firmReviews": null,
     "aggregateReview": null
+  }
+}
+```
+
+For `structured_pitch_deck`, the raw deck sections, bullets, speaker notes,
+and notes are stored privately. The safe job view may return only:
+
+```json
+{
+  "deckSummary": {
+    "title": "VaultPay Investor Dossier",
+    "oneLinePitch": "Compliance-aware wallet operations for marketplaces.",
+    "sectionCount": 12,
+    "sectionKinds": ["problem", "solution", "market"],
+    "evidenceSummary": {
+      "missing": 1,
+      "weak": 4,
+      "adequate": 6,
+      "strong": 1
+    }
   }
 }
 ```

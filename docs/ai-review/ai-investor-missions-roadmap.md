@@ -130,8 +130,14 @@ Inputs:
 - location/city/country
 - website/product URL metadata
 - sector and target customer
-- PDF extracted text, manual pitch text, or AI-generated deck text
+- PDF extracted text, manual pitch text, AI-generated deck text, or structured
+  pitch deck draft evidence
+- structured deck section kinds, order, evidence levels, bullets, and private
+  speaker notes when the input type is `structured_pitch_deck`
 - generated deck warnings/missing information if present
+- missing or weak structured-deck evidence, such as absent funding ask, weak
+  traction proof, missing GTM wedge, or compliance-sensitive problem/solution
+  language
 - selected firms
 - firm review concerns, questions, deal breakers, and milestones
 - aggregate review risks, pitch fixes, and best next milestones

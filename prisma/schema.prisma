@@ -711,6 +711,7 @@ model VcDeckReviewJob {
   manualNotes            String?   @db.Text
   startupProfile         Json?
   generatedDeck          Json?
+  structuredDeck         Json?
   sourceSummary          String?
   accessConsumedAt       DateTime?
   accessUsedCredit       Boolean   @default(false)

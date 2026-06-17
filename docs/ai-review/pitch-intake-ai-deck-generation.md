@@ -1,11 +1,12 @@
 # Phase 25B: Pitch Intake, AI Deck Generation, Startup Profile, and Access Gate
 
-Founder Arena now supports three backend review inputs for the fictional AI
+Founder Arena now supports four backend review inputs for the fictional AI
 investment firm market:
 
 1. PDF pitch deck upload.
 2. Manual pitch text.
 3. AI-generated professional deck.
+4. Structured pitch deck draft from the native in-game builder.
 
 This phase prepares the backend and web test UI for future native iOS intake.
 It does not add iOS code, OCR, real investor outreach, CRM, email sending,
@@ -40,6 +41,33 @@ payment provider changes, or the future AI Game Director.
 - The generated deck is stored privately on the review job for future gameplay
   consumption, but raw generated deck JSON is not exposed through public share
   pages.
+
+### `structured_pitch_deck`
+
+- Uses a founder-authored `PitchDeckDraft` from the native app.
+- Submit `structuredDeck` to `POST /api/vc-review-jobs`.
+- No PDF file and no manual pitch text are required.
+- The backend validates the deck JSON strictly, preserves section order, and
+  converts sections into private review evidence for fictional firm prompts.
+- Raw section bullets, speaker notes, and deck notes are stored privately on the
+  review job and are not returned in normal safe job responses.
+- Safe job responses may return only a `deckSummary` with title, one-line
+  pitch, section count, section kinds, and evidence-level counts.
+
+Structured deck validation:
+
+- `title`: required, max 160 characters.
+- `oneLinePitch`: optional, max 280 characters.
+- `notes`: optional, max 2,000 characters.
+- `sections`: 1-20 sections.
+- allowed section kinds:
+  `title`, `problem`, `solution`, `product`, `market`, `targetCustomer`,
+  `businessModel`, `traction`, `goToMarket`, `competition`, `team`,
+  `fundingAsk`, `roadmap`.
+- allowed evidence levels: `missing`, `weak`, `adequate`, `strong`.
+- section `headline`: max 240 characters.
+- section `bullets`: up to 8 bullets, max 260 characters each.
+- section `speakerNote`: max 1,200 characters.
 
 ## Startup Profile Metadata
 

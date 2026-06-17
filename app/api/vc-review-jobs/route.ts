@@ -21,13 +21,16 @@ import {
 } from "@/lib/deck-review/pdf";
 import { MAX_MANUAL_NOTES_CHARS } from "@/lib/deck-review/prompt";
 import { generatedDeckToReviewText } from "@/lib/deck-review/deck-generation";
+import { structuredPitchDeckToReviewText } from "@/lib/deck-review/structured-deck";
 import { startupProfileJson } from "@/lib/deck-review/generation-service";
 import { hasStartupProfileInput, parseStartupProfileFromForm, storePrivateLogo } from "@/lib/deck-review/profile";
 import {
   generatedDeckSchema,
+  structuredPitchDeckSchema,
   validateManualPitchText,
   type GeneratedDeck,
   type ReviewInputType,
+  type StructuredPitchDeck,
 } from "@/lib/deck-review/schemas";
 import { buildStoredStartupProfileFromStartup, mergeStartupProfiles } from "@/lib/startups/mobile-api";
 import {
@@ -42,7 +45,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 function parseReviewInputType(value: FormDataEntryValue | null): ReviewInputType {
-  return value === "manual_pitch" || value === "ai_generated_deck" || value === "pdf_upload"
+  return value === "manual_pitch" || value === "ai_generated_deck" || value === "structured_pitch_deck" || value === "pdf_upload"
     ? value
     : "pdf_upload";
 }
@@ -51,12 +54,57 @@ function sha256(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
-function summarizeInput(inputType: ReviewInputType, text: string, generatedDeck?: GeneratedDeck | null): string {
+function summarizeInput(
+  inputType: ReviewInputType,
+  text: string,
+  generatedDeck?: GeneratedDeck | null,
+  structuredDeck?: StructuredPitchDeck | null
+): string {
   if (inputType === "ai_generated_deck" && generatedDeck) {
     return `${generatedDeck.deckTitle} · ${generatedDeck.slides.length} generated slides`;
   }
+  if (inputType === "structured_pitch_deck" && structuredDeck) {
+    return `${structuredDeck.title} · ${structuredDeck.sections.length} structured sections`;
+  }
   if (inputType === "manual_pitch") return `Manual pitch · ${text.length} chars`;
   return `PDF deck · ${text.length} extracted chars`;
+}
+
+async function requestToFormData(request: NextRequest): Promise<FormData> {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().includes("application/json")) {
+    return request.formData();
+  }
+
+  const body = await request.json();
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new Error("Expected JSON object.");
+  }
+  const input = body as Record<string, unknown>;
+  const form = new FormData();
+  const setString = (key: string, value: unknown) => {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      form.set(key, String(value));
+    }
+  };
+
+  setString("inputType", input.inputType);
+  setString("startupId", input.startupId);
+  setString("pitchText", input.pitchText);
+  setString("generatedDeckJobId", input.generatedDeckJobId);
+  setString("manualNotes", input.manualNotes);
+  if (Array.isArray(input.selectedFirmIds)) {
+    form.set("firmIds", input.selectedFirmIds.map((id) => String(id).trim()).filter(Boolean).join(","));
+  } else {
+    setString("firmIds", input.firmIds);
+  }
+  if (input.startupProfile && typeof input.startupProfile === "object") {
+    form.set("startupProfile", JSON.stringify(input.startupProfile));
+  }
+  if (input.structuredDeck && typeof input.structuredDeck === "object") {
+    form.set("structuredDeck", JSON.stringify(input.structuredDeck));
+  }
+  return form;
 }
 
 /**
@@ -64,10 +112,11 @@ function summarizeInput(inputType: ReviewInputType, text: string, generatedDeck?
  *
  * multipart/form-data:
  * - startupId   (required)
- * - inputType   pdf_upload | manual_pitch | ai_generated_deck
+ * - inputType   pdf_upload | manual_pitch | ai_generated_deck | structured_pitch_deck
  * - deck        required for pdf_upload
  * - pitchText   required for manual_pitch
  * - generatedDeckJobId required for ai_generated_deck
+ * - structuredDeck required as JSON for structured_pitch_deck
  * - startupProfile/profile.* optional private profile context
  * - logo        optional private PNG/JPEG/WebP logo
  * - manualNotes optional, ≤2000 chars
@@ -87,9 +136,9 @@ export async function POST(request: NextRequest) {
 
   let form: FormData;
   try {
-    form = await request.formData();
+    form = await requestToFormData(request);
   } catch {
-    return NextResponse.json({ error: "Expected multipart/form-data." }, { status: 400 });
+    return NextResponse.json({ error: "Expected multipart/form-data or application/json." }, { status: 400 });
   }
 
   const startupId = String(form.get("startupId") ?? "").trim();
@@ -200,6 +249,7 @@ export async function POST(request: NextRequest) {
   let deckFileName: string | null = null;
   let deckSizeBytes = 0;
   let generatedDeck: GeneratedDeck | null = null;
+  let structuredDeck: StructuredPitchDeck | null = null;
 
   if (inputType === "pdf_upload") {
     const deck = form.get("deck");
@@ -268,7 +318,7 @@ export async function POST(request: NextRequest) {
     extractedText = pitch.text;
     extractedTextSha256 = sha256(extractedText);
     deckFileName = "Manual pitch";
-  } else {
+  } else if (inputType === "ai_generated_deck") {
     const generatedDeckJobId = String(form.get("generatedDeckJobId") ?? "").trim();
     if (!generatedDeckJobId) {
       return NextResponse.json({ error: "generatedDeckJobId is required.", errorCategory: "invalid_pitch" }, { status: 400 });
@@ -285,6 +335,33 @@ export async function POST(request: NextRequest) {
     extractedText = generatedDeckToReviewText(generatedDeck);
     extractedTextSha256 = sha256(extractedText);
     deckFileName = generatedDeck.deckTitle;
+  } else if (inputType === "structured_pitch_deck") {
+    const rawStructuredDeck = form.get("structuredDeck");
+    if (typeof rawStructuredDeck !== "string" || rawStructuredDeck.trim().length === 0) {
+      return NextResponse.json({ error: "structuredDeck is required.", errorCategory: "invalid_pitch" }, { status: 400 });
+    }
+
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(rawStructuredDeck);
+    } catch {
+      return NextResponse.json({ error: "structuredDeck must be valid JSON.", errorCategory: "invalid_pitch" }, { status: 400 });
+    }
+
+    const parsedStructuredDeck = structuredPitchDeckSchema.safeParse(parsedJson);
+    if (!parsedStructuredDeck.success) {
+      const issue = parsedStructuredDeck.error.issues[0];
+      const path = issue?.path.length ? `${issue.path.join(".")}: ` : "";
+      return NextResponse.json(
+        { error: `Structured deck is invalid. ${path}${issue?.message ?? "Check the deck fields."}`, errorCategory: "invalid_pitch" },
+        { status: 400 }
+      );
+    }
+
+    structuredDeck = parsedStructuredDeck.data;
+    extractedText = structuredPitchDeckToReviewText(structuredDeck);
+    extractedTextSha256 = sha256(extractedText);
+    deckFileName = structuredDeck.title;
   }
 
   const now = new Date();
@@ -305,7 +382,8 @@ export async function POST(request: NextRequest) {
       manualNotes,
       startupProfile: startupProfileJson(profile),
       generatedDeck: generatedDeck ? generatedDeck as unknown as Prisma.InputJsonValue : undefined,
-      sourceSummary: summarizeInput(inputType, extractedText, generatedDeck),
+      structuredDeck: structuredDeck ? structuredDeck as unknown as Prisma.InputJsonValue : undefined,
+      sourceSummary: summarizeInput(inputType, extractedText, generatedDeck, structuredDeck),
       selectedFirmIds: firms.map((firm) => firm.id),
     },
   });
