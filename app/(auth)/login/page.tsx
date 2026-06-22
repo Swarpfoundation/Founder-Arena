@@ -63,7 +63,7 @@ export default async function LoginPage({
 
           <div className="text-center space-y-6">
             <div className="w-20 h-20 mx-auto">
-              <Image src="/logo.png" alt="Founder Arena" width={80} height={80} priority />
+              <Image src="/game-assets/FounderArenaLogo.webp" alt="Founder Arena" width={80} height={80} priority />
             </div>
 
             <div>

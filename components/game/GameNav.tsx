@@ -50,7 +50,7 @@ export function GameNav() {
         <AnimatePresence mode="wait">
           {open ? (
             <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }}>
-              <Image src="/logo.png" alt="Founder Arena" width={24} height={24} />
+              <Image src="/game-assets/FounderArenaLogo.webp" alt="Founder Arena" width={24} height={24} />
             </motion.div>
           ) : (
             <motion.div key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }}>
@@ -64,7 +64,7 @@ export function GameNav() {
       <div className="fixed top-6 right-6 z-[100] flex items-center gap-3">
         <Link href="/" className="flex items-center gap-2 group">
           <div className="w-8 h-8 relative">
-            <Image src="/logo.png" alt="Founder Arena" width={32} height={32} />
+            <Image src="/game-assets/FounderArenaLogo.webp" alt="Founder Arena" width={32} height={32} />
           </div>
           <span className="text-sm font-bold tracking-[0.3em] text-cyan-400 hidden md:block group-hover:text-glow-cyan transition-all">
             FOUNDER ARENA
